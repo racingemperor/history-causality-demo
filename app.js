@@ -24,7 +24,7 @@ function load() {
   } catch { storageAvailable = false; return fresh(); }
 }
 let state = load();
-let saveTimer, toastTimer, resetArmed = false;
+let saveTimer, toastTimer, resetArmed = false, hintsOpen = false;
 const main = document.getElementById('main');
 const esc = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const rubricNames = ['区分根本原因与直接诱因', '事件时序与先后关系', '阐明因果传导关系'];
@@ -46,7 +46,7 @@ const voice = createVoiceInput({
 function voiceControls(id) {
   return `<div class="voice-toolbar"><button type="button" class="voice-button" data-voice="${id}" aria-pressed="false" aria-describedby="voice-status-${id}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg><span>语音输入</span></button><span class="voice-status" id="voice-status-${id}" role="status">用普通话说出你的想法</span></div><p class="voice-preview" id="voice-preview-${id}" hidden></p>`;
 }
-function go(page) { voice.cancel(); state.page = resolvePage(state, page); save(); render(); main.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'instant' }); }
+function go(page) { voice.cancel(); hintsOpen = false; state.page = resolvePage(state, page); save(); render(); main.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'instant' }); }
 const methodHints = {
   pre: ['先想一想：哪些是长期积累的背景，哪些是眼前发生的事件？用你已知的内容开始。', '可以按“背景 → 矛盾 → 事件 → 战争 → 影响”组织作答。每一步尝试说明上一项如何推动下一项，不必使用固定措辞。'],
   post: ['先判断题中的说法，再分别解释长期动因与具体事件的作用。', '想想：如果没有这一个具体事件，长期矛盾是否仍然存在？用完整的传导关系支持你的判断，再检查先后关系。'],
@@ -59,9 +59,16 @@ function currentHint() {
 }
 function hintPanel() {
   const hint = currentHint(), used = hint.owner[hint.key];
-  return `<section class="page-hints" id="page-hints" aria-label="当前题目提示" ${used ? '' : 'hidden'}>${hint.texts.slice(0, used).map((text, i) => `<div class="hint-box"><strong>${i === 0 ? '一级 · 轻提示' : '二级 · 深提示'} <span>${hint.type}</span></strong>${text}</div>`).join('')}</section>`;
+  if (!hintsOpen) return '<section class="page-hints" id="page-hints" aria-label="当前题目提示" hidden></section>';
+  return `<section class="page-hints" id="page-hints" aria-label="当前题目提示">${hint.texts.slice(0, used).map((text, i) => `<div class="hint-box"><strong>${i === 0 ? '一级 · 轻提示' : '二级 · 深提示'} <span>${hint.type}</span></strong>${text}</div>`).join('')}${used < 2 ? '<button class="hint-button hint-next" data-action="deepen-hint">再看深提示 →</button>' : ''}</section>`;
 }
-const pageHeader = (eyebrow, title, intro, meta) => `<div class="page-top"><span class="eyebrow">${eyebrow}</span><div class="page-tools"><span class="quiet-meta">${meta}</span>${state.page !== 'report' ? `<button class="hint-button header-hint" data-action="show-hint" aria-controls="page-hints" aria-expanded="${currentHint().owner[currentHint().key] > 0}">提示 <span>${currentHint().owner[currentHint().key]}/2</span></button><button class="skip-button" data-action="skip-stage" aria-label="跳过当前阶段">跳过 <span aria-hidden="true">↗</span></button>` : ''}</div></div><h2 class="page-heading">${title}</h2><p class="intro">${intro}</p>${state.page !== 'report' ? hintPanel() : ''}`;
+function hintButtonText() { const hint = currentHint(); return `${hintsOpen ? '收起提示' : '提示'} <span>${hint.owner[hint.key]}/2</span>`; }
+function updateHints() {
+  document.getElementById('page-hints').outerHTML = hintPanel();
+  const button = document.querySelector('[data-action="toggle-hints"]');
+  button.innerHTML = hintButtonText(); button.setAttribute('aria-expanded', String(hintsOpen));
+}
+const pageHeader = (eyebrow, title, intro, meta) => `<div class="page-top"><span class="eyebrow">${eyebrow}</span><div class="page-tools"><span class="quiet-meta">${meta}</span>${state.page !== 'report' ? `<button class="hint-button header-hint" data-action="toggle-hints" aria-controls="page-hints" aria-expanded="${hintsOpen}">${hintButtonText()}</button><button class="skip-button" data-action="skip-stage" aria-label="跳过当前阶段">跳过 <span aria-hidden="true">↗</span></button>` : ''}</div></div><h2 class="page-heading">${title}</h2><p class="intro">${intro}</p>${state.page !== 'report' ? hintPanel() : ''}`;
 const footer = () => `<div class="bottom-caption"><span>知其然，也知其所以然。</span><span>${storageAvailable ? '文字记录仅保存在当前浏览器' : '本次记录未持久保存'} · 教学演示版</span></div>`;
 function rubric() { return `<div class="rubric-strip">${rubricNames.map((name, i) => `<div class="rubric-item"><strong>${name}</strong><span>${[4, 3, 3][i]}<small> 分</small></span></div>`).join('')}</div>`; }
 function essayActions(mode) {
@@ -106,14 +113,18 @@ function render() {
 document.addEventListener('click', event => {
   const button = event.target.closest('button'); if (!button) return;
   if (button.dataset.voice) return voice.start(button.dataset.voice);
-  if (button.dataset.action === 'show-hint' && state.page !== 'report') {
+  if (button.dataset.action === 'toggle-hints' && state.page !== 'report') {
     const hint = currentHint();
-    if (hint.owner[hint.key] < 2) hint.owner[hint.key]++;
-    else { toast('两级提示已全部展开，可以回看后继续思考。'); document.getElementById('page-hints').scrollIntoView({ block: 'nearest', behavior: 'instant' }); return; }
-    save(); voice.cancel();
-    const panel = document.getElementById('page-hints'); panel.outerHTML = hintPanel();
-    button.innerHTML = `提示 <span>${hint.owner[hint.key]}/2</span>`; button.setAttribute('aria-expanded', 'true');
-    document.getElementById('page-hints').scrollIntoView({ block: 'nearest', behavior: 'instant' });
+    hintsOpen = !hintsOpen;
+    if (hintsOpen && hint.owner[hint.key] === 0) { hint.owner[hint.key] = 1; save(); }
+    voice.cancel(); updateHints();
+    return;
+  }
+  if (button.dataset.action === 'deepen-hint' && state.page !== 'report' && hintsOpen) {
+    const hint = currentHint();
+    if (hint.owner[hint.key] !== 1) return;
+    hint.owner[hint.key] = 2; save(); voice.cancel(); updateHints();
+    document.querySelector('[data-action="toggle-hints"]').focus({ preventScroll: true });
     return;
   }
   if (button.dataset.check !== undefined) {
@@ -166,7 +177,7 @@ const dialog = document.getElementById('about-dialog');
 document.getElementById('about-button').addEventListener('click', () => { voice.cancel(); resetArmed = false; document.getElementById('reset-help').textContent = ''; dialog.showModal(); });
 document.getElementById('close-about').addEventListener('click', () => dialog.close());
 dialog.addEventListener('click', event => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } });
-document.getElementById('reset-button').addEventListener('click', () => { if (!resetArmed) { resetArmed = true; document.getElementById('reset-help').textContent = '再次点击将清空本浏览器的学习记录。可先关闭此窗口导出记录。'; return; } voice.cancel(); clearTimeout(saveTimer); state = fresh(); save(); dialog.close(); render(); toast('本机记录已清空，可以重新开始。'); });
+document.getElementById('reset-button').addEventListener('click', () => { if (!resetArmed) { resetArmed = true; document.getElementById('reset-help').textContent = '再次点击将清空本浏览器的学习记录。可先关闭此窗口导出记录。'; return; } voice.cancel(); clearTimeout(saveTimer); state = fresh(); hintsOpen = false; save(); dialog.close(); render(); toast('本机记录已清空，可以重新开始。'); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) voice.cancel(); });
 window.addEventListener('pagehide', () => { voice.cancel(); clearTimeout(saveTimer); save(); });
 render();
