@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f3ec">
+  <meta name="description" content="第一次鸦片战争五层因果推演：用自主填空、阶梯提示与前后测，练习历史因果思维。">
+  <title>知因 · 历史因果实验室</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./logic.js" defer></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="知因 首页"><span class="brand-mark" aria-hidden="true">因</span><strong>知因</strong><span class="brand-sub">历史因果实验室</span></a>
+    <button class="text-button" id="about-button">学习说明 <span aria-hidden="true">↗</span></button>
+  </header>
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="course-label">中国近代史 · 专题一</div>
+      <h1>第一次<br>鸦片战争</h1>
+      <p class="period">1840 — 1842</p>
+      <div class="sidebar-rule"></div>
+      <nav aria-label="学习步骤" id="step-nav"></nav>
+      <div class="side-note"><span class="small-line" aria-hidden="true"></span><p>从一个事件，<br>追问到它背后的时代。</p><span>每一层，都由你推导。</span></div>
+      <div class="sidebar-bottom">HISTORY, THROUGH REASONING.<br><span>交互教学 Demo · 进度保存在本机</span></div>
+    </aside>
+    <main id="main" tabindex="-1"></main>
+  </div>
+  <dialog id="about-dialog" aria-labelledby="about-title">
+    <div class="dialog-top"><span class="eyebrow">使用说明</span><button class="icon-button" id="close-about" aria-label="关闭学习说明">×</button></div>
+    <h2 id="about-title">把“为什么”再往下问一层。</h2>
+    <p>你可以先完成前测，也可以直接进入推演。五层填空支持不同表述，答错时只给反馈；同一层第一次求助显示轻提示，第二次才显示深提示。</p>
+    <p>完成五层后，连接从深层动因到战争爆发的传导关系，再做同维度后测。前测达到 8 分时，可自主选择跳过训练。</p>
+    <div class="notice"><strong>关于这份演示</strong><p>校验与评分采用本地关键词规则，仅作学习参考，可能误判同义表达、否定句或时序。正式教学需教师复核。本页不主动展示标准答案；静态网站的校验规则可被查看，真正保密的答案库需部署在后端。</p><p>学习记录仅保存在当前浏览器，不上传学生数据。可导出记录，再由教师复核。</p></div>
+    <button id="reset-button" class="button secondary full-width">清空本机记录，重新开始</button>
+    <p class="reset-help" id="reset-help" role="status"></p>
+  </dialog>
+  <dialog id="feedback-dialog" aria-labelledby="feedback-title" aria-describedby="feedback-text">
+    <span class="eyebrow">再想一想</span>
+    <h2 id="feedback-title">换个角度，再试一次。</h2>
+    <p id="feedback-text"></p>
+    <form method="dialog"><button class="button full-width">继续思考</button></form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
