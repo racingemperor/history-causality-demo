@@ -7,9 +7,11 @@
   <meta name="description" content="第一次鸦片战争五层因果推演：用自主填空、阶梯提示与前后测，练习历史因果思维。">
   <title>知因 · 历史因果实验室</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
-  <script src="./logic.js" defer></script>
-  <script src="./app.js" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=2">
+  <script src="./assessment.js?v=2" defer></script>
+  <script src="./logic.js?v=2" defer></script>
+  <script src="./voice.js?v=2" defer></script>
+  <script src="./app.js?v=2" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -23,7 +25,7 @@
       <h1>第一次<br>鸦片战争</h1>
       <p class="period">1840 — 1842</p>
       <div class="sidebar-rule"></div>
-      <nav aria-label="学习步骤" id="step-nav"></nav>
+      <p class="current-stage" id="current-stage" aria-label="当前学习内容"></p>
       <div class="side-note"><span class="small-line" aria-hidden="true"></span><p>从一个事件，<br>追问到它背后的时代。</p><span>每一层，都由你推导。</span></div>
       <div class="sidebar-bottom">HISTORY, THROUGH REASONING.<br><span>交互教学 Demo · 进度保存在本机</span></div>
     </aside>
@@ -32,9 +34,10 @@
   <dialog id="about-dialog" aria-labelledby="about-title">
     <div class="dialog-top"><span class="eyebrow">使用说明</span><button class="icon-button" id="close-about" aria-label="关闭学习说明">×</button></div>
     <h2 id="about-title">把“为什么”再往下问一层。</h2>
-    <p>你可以先完成前测，也可以直接进入推演。五层填空支持不同表述，答错时只给反馈；同一层第一次求助显示轻提示，第二次才显示深提示。</p>
-    <p>完成五层后，连接从深层动因到战争爆发的传导关系，再做同维度后测。前测达到 8 分时，可自主选择跳过训练。</p>
-    <div class="notice"><strong>关于这份演示</strong><p>校验与评分采用本地关键词规则，仅作学习参考，可能误判同义表达、否定句或时序。正式教学需教师复核。本页不主动展示标准答案；静态网站的校验规则可被查看，真正保密的答案库需部署在后端。</p><p>学习记录仅保存在当前浏览器，不上传学生数据。可导出记录，再由教师复核。</p></div>
+    <p>页面按顺序推进，只呈现当前内容。五层填空逐层展开，检验通过后才能继续；如暂时没有思路，可以点击“跳过这一层”，也可以用页面上方的“跳过”略过当前阶段。跳过会记录为未完成，不会记作零分。</p>
+    <p>每层第一次求助显示轻提示，第二次才显示深提示。五层走完后连接传导关系，再做同维度后测。</p>
+    <p>作答框旁可点击“语音输入”，用普通话口述，再点“停止输入”。识别的文字可继续编辑。首次使用需允许麦克风；识别服务可能由浏览器在线提供，是否可用取决于浏览器、设备及网络。本网站不保存录音。不支持时，可使用手机键盘自带的语音输入。</p>
+    <div class="notice"><strong>关于这份演示</strong><p>按概念含义、同义表达、传导关系与时序辅助评分，不要求固定原句。不能确定的维度留待复核，不直接当作错误。开放表述仍可能超出算法覆盖范围。本页不主动展示标准答案；静态网站的校验规则可被查看，真正保密的答案库需部署在后端。</p><p>作答文字与学习进度仅保存在当前浏览器。语音识别可能连接浏览器提供的在线服务，本网站不保存录音。可导出文字记录供教师复核。</p></div>
     <button id="reset-button" class="button secondary full-width">清空本机记录，重新开始</button>
     <p class="reset-help" id="reset-help" role="status"></p>
   </dialog>
