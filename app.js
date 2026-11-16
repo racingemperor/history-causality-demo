@@ -2,7 +2,7 @@
 'use strict';
 const { layers, validateLayer, gradeEssay, countRelations, resolvePage, firstUnfinishedLayer } = HistoryLogic;
 const KEY = 'zhiyin-history-v1';
-const fresh = () => ({ version: 2, page: 'pre', preText: '', postText: '', pre: null, post: null, skippedPre: false, skippedPost: false, skippedTraining: false, skippedLinks: false, trainingFinished: false, active: 0, items: layers.map(() => ({ text: '', hints: 0, ok: false, skipped: false, attempts: [], feedback: null })), links: ['', '', '', ''], trained: false });
+const fresh = () => ({ version: 2, page: 'pre', preText: '', postText: '', pre: null, post: null, skippedPre: false, skippedPost: false, skippedTraining: false, skippedLinks: false, trainingFinished: false, active: 0, items: layers.map(() => ({ text: '', hints: 0, ok: false, skipped: false, attempts: [], feedback: null })), methodHints: { pre: 0, post: 0, connections: 0 }, links: ['', '', '', ''], trained: false });
 let storageAvailable = true;
 function load() {
   try {
@@ -14,6 +14,7 @@ function load() {
     base.preText = data.preText; base.postText = data.postText;
     base.pre = data.pre ? gradeEssay(data.preText) : null; base.post = data.post ? gradeEssay(data.postText) : null;
     for (const key of ['skippedPre', 'skippedPost', 'skippedTraining', 'skippedLinks', 'trainingFinished']) base[key] = !!data[key];
+    for (const key of Object.keys(base.methodHints)) if ([0, 1, 2].includes(data.methodHints?.[key])) base.methodHints[key] = data.methodHints[key];
     base.items = data.items.map((item, i) => ({ text: item.text, hints: item.hints, ok: !!item.ok && validateLayer(i, item.text).ok, skipped: !!item.skipped, attempts: item.attempts, feedback: null }));
     base.links = data.links; base.trained = !!data.trained && base.items.every(item => item.ok) && base.links.every(x => countRelations(x) > 0); base.trainingFinished ||= base.trained;
     const first = firstUnfinishedLayer(base.items);
@@ -46,7 +47,21 @@ function voiceControls(id) {
   return `<div class="voice-toolbar"><button type="button" class="voice-button" data-voice="${id}" aria-pressed="false" aria-describedby="voice-status-${id}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg><span>语音输入</span></button><span class="voice-status" id="voice-status-${id}" role="status">用普通话说出你的想法</span></div><p class="voice-preview" id="voice-preview-${id}" hidden></p>`;
 }
 function go(page) { voice.cancel(); state.page = resolvePage(state, page); save(); render(); main.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'instant' }); }
-const pageHeader = (eyebrow, title, intro, meta) => `<div class="page-top"><span class="eyebrow">${eyebrow}</span><div class="page-tools"><span class="quiet-meta">${meta}</span>${state.page !== 'report' ? '<button class="skip-button" data-action="skip-stage" aria-label="跳过当前阶段">跳过 <span aria-hidden="true">↗</span></button>' : ''}</div></div><h2 class="page-heading">${title}</h2><p class="intro">${intro}</p>`;
+const methodHints = {
+  pre: ['先想一想：哪些是长期积累的背景，哪些是眼前发生的事件？用你已知的内容开始。', '可以按“背景 → 矛盾 → 事件 → 战争 → 影响”组织作答。每一步尝试说明上一项如何推动下一项，不必使用固定措辞。'],
+  post: ['先判断题中的说法，再分别解释长期动因与具体事件的作用。', '想想：如果没有这一个具体事件，长期矛盾是否仍然存在？用完整的传导关系支持你的判断，再检查先后关系。'],
+  connections: ['不要只重复两端的名词，试着说清中间发生了什么变化。', '每段可按“A 带来了什么需求或压力 → 谁作出什么反应 → B 怎样出现”说明；也可以用自己的句式。']
+};
+function currentHint() {
+  if (state.page === 'canvas' && state.active < 5) return { owner: state.items[state.active], key: 'hints', texts: layers[state.active].hints, type: '思考线索' };
+  const key = state.page === 'canvas' ? 'connections' : state.page;
+  return { owner: state.methodHints, key, texts: methodHints[key], type: '作答方法' };
+}
+function hintPanel() {
+  const hint = currentHint(), used = hint.owner[hint.key];
+  return `<section class="page-hints" id="page-hints" aria-label="当前题目提示" ${used ? '' : 'hidden'}>${hint.texts.slice(0, used).map((text, i) => `<div class="hint-box"><strong>${i === 0 ? '一级 · 轻提示' : '二级 · 深提示'} <span>${hint.type}</span></strong>${text}</div>`).join('')}</section>`;
+}
+const pageHeader = (eyebrow, title, intro, meta) => `<div class="page-top"><span class="eyebrow">${eyebrow}</span><div class="page-tools"><span class="quiet-meta">${meta}</span>${state.page !== 'report' ? `<button class="hint-button header-hint" data-action="show-hint" aria-controls="page-hints" aria-expanded="${currentHint().owner[currentHint().key] > 0}">提示 <span>${currentHint().owner[currentHint().key]}/2</span></button><button class="skip-button" data-action="skip-stage" aria-label="跳过当前阶段">跳过 <span aria-hidden="true">↗</span></button>` : ''}</div></div><h2 class="page-heading">${title}</h2><p class="intro">${intro}</p>${state.page !== 'report' ? hintPanel() : ''}`;
 const footer = () => `<div class="bottom-caption"><span>知其然，也知其所以然。</span><span>${storageAvailable ? '文字记录仅保存在当前浏览器' : '本次记录未持久保存'} · 教学演示版</span></div>`;
 function rubric() { return `<div class="rubric-strip">${rubricNames.map((name, i) => `<div class="rubric-item"><strong>${name}</strong><span>${[4, 3, 3][i]}<small> 分</small></span></div>`).join('')}</div>`; }
 function essayActions(mode) {
@@ -61,7 +76,7 @@ function testPage(mode) {
 }
 function layerCard(i) {
   const layer = layers[i], item = state.items[i];
-  return `<section class="layer-card current ${item.ok ? 'correct' : ''}" id="layer-${i}"><div class="layer-head"><div class="layer-name"><div><h3>${layer.title}</h3><small>${layer.subtitle}</small></div></div><span class="layer-status">${item.ok ? '✓ 已通过' : '当前探索'}</span></div><div class="layer-body"><label class="layer-question" for="layer-input-${i}">${layer.question}</label><textarea id="layer-input-${i}" data-layer-input="${i}" placeholder="写下你的理解，也可以点击麦克风直接说。">${esc(item.text)}</textarea>${voiceControls(`layer-input-${i}`)}<div class="layer-actions"><button class="hint-button" data-hint="${i}" ${item.hints >= 2 ? 'disabled' : ''}>${item.hints === 0 ? '给我一点线索' : item.hints === 1 ? '再深入想一想' : '两级提示已展开'} <span>${item.hints}/2</span></button><div id="layer-check-action">${layerCheckAction(i)}</div></div>${layer.hints.slice(0, item.hints).map((hint, h) => `<div class="hint-box"><strong>${h === 0 ? '一级 · 轻提示' : '二级 · 深提示'}</strong>${hint}</div>`).join('')}<p class="field-feedback ${item.feedback?.ok ? 'success' : ''}" role="status" id="layer-feedback">${item.feedback ? esc(item.feedback.message) : ''}</p></div></section><div class="layer-bottom"><p class="quiet-meta">检验通过后继续；暂时没有思路也可以跳过。</p><button class="text-button" data-action="skip-layer">跳过这一层 <span aria-hidden="true">→</span></button></div>`;
+  return `<section class="layer-card current ${item.ok ? 'correct' : ''}" id="layer-${i}"><div class="layer-head"><div class="layer-name"><div><h3>${layer.title}</h3><small>${layer.subtitle}</small></div></div><span class="layer-status">${item.ok ? '✓ 已通过' : '当前探索'}</span></div><div class="layer-body"><label class="layer-question" for="layer-input-${i}">${layer.question}</label><textarea id="layer-input-${i}" data-layer-input="${i}" placeholder="写下你的理解，也可以点击麦克风直接说。">${esc(item.text)}</textarea>${voiceControls(`layer-input-${i}`)}<div class="layer-actions"><span class="quiet-meta">需要线索？点击顶部的“提示”。</span><div id="layer-check-action">${layerCheckAction(i)}</div></div><p class="field-feedback ${item.feedback?.ok ? 'success' : ''}" role="status" id="layer-feedback">${item.feedback ? esc(item.feedback.message) : ''}</p></div></section><div class="layer-bottom"><p class="quiet-meta">检验通过后继续；暂时没有思路也可以跳过。</p><button class="text-button" data-action="skip-layer">跳过这一层 <span aria-hidden="true">→</span></button></div>`;
 }
 function layerCheckAction(i) { return state.items[i].ok ? '<button class="button small" data-action="next-layer">继续推导 →</button>' : `<button class="button small" data-check="${i}">检验这一层 →</button>`; }
 function canvasPage() {
@@ -91,7 +106,16 @@ function render() {
 document.addEventListener('click', event => {
   const button = event.target.closest('button'); if (!button) return;
   if (button.dataset.voice) return voice.start(button.dataset.voice);
-  if (button.dataset.hint !== undefined) { const i = +button.dataset.hint; if (state.page !== 'canvas' || state.active !== i) return; if (state.items[i].hints < 2) state.items[i].hints++; save(); render(); document.querySelector(`[data-hint="${i}"]`).focus({ preventScroll: true }); return; }
+  if (button.dataset.action === 'show-hint' && state.page !== 'report') {
+    const hint = currentHint();
+    if (hint.owner[hint.key] < 2) hint.owner[hint.key]++;
+    else { toast('两级提示已全部展开，可以回看后继续思考。'); document.getElementById('page-hints').scrollIntoView({ block: 'nearest', behavior: 'instant' }); return; }
+    save(); voice.cancel();
+    const panel = document.getElementById('page-hints'); panel.outerHTML = hintPanel();
+    button.innerHTML = `提示 <span>${hint.owner[hint.key]}/2</span>`; button.setAttribute('aria-expanded', 'true');
+    document.getElementById('page-hints').scrollIntoView({ block: 'nearest', behavior: 'instant' });
+    return;
+  }
   if (button.dataset.check !== undefined) {
     const i = +button.dataset.check; if (state.page !== 'canvas' || state.active !== i) return;
     const item = state.items[i], result = validateLayer(i, item.text); item.ok = result.ok; item.skipped = false; item.feedback = result;
@@ -127,7 +151,7 @@ document.addEventListener('click', event => {
     state.trainingFinished = true; state.trained = state.items.every(item => item.ok); state.skippedTraining = false; return go('post');
   }
   if (action === 'export' && state.page === 'report') {
-    const record = { title: '知因 · 第一次鸦片战争学习记录', exportedAt: new Date().toISOString(), scoringNotice: '概念与关系规则辅助评分，无法确定的维度为 null，需复核；跳过不记零分。', pre: state.pre ? { answer: state.preText, ...state.pre } : null, post: state.post ? { answer: state.postText, ...state.post } : null, drafts: { pre: state.preText, post: state.postText }, skipped: { pre: state.skippedPre, training: state.skippedTraining, post: state.skippedPost, connections: state.skippedLinks }, layers: state.items.map((item, i) => ({ layer: layers[i].title, ...item })), connections: state.links };
+    const record = { title: '知因 · 第一次鸦片战争学习记录', exportedAt: new Date().toISOString(), scoringNotice: '概念与关系规则辅助评分，无法确定的维度为 null，需复核；跳过不记零分。', pre: state.pre ? { answer: state.preText, ...state.pre } : null, post: state.post ? { answer: state.postText, ...state.post } : null, drafts: { pre: state.preText, post: state.postText }, methodHints: state.methodHints, skipped: { pre: state.skippedPre, training: state.skippedTraining, post: state.skippedPost, connections: state.skippedLinks }, layers: state.items.map((item, i) => ({ layer: layers[i].title, ...item })), connections: state.links };
     const url = URL.createObjectURL(new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = '知因-鸦片战争-学习记录.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); toast('学习记录已导出，包含原文、识别依据与提示使用情况。');
   }
 });
