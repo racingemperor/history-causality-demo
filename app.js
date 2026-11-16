@@ -81,9 +81,10 @@ function testPage(mode) {
   const question = pre ? '请梳理第一次鸦片战争爆发的因果逻辑链条，说明哪些深层因素、中间矛盾、直接事件，最终导致战争爆发与后续影响，并写出各要素之间的推动关系。' : '有人说：“虎门销烟是鸦片战争爆发的根本原因。”这个说法是否正确？请结合历史因果逻辑，层层梳理并论证你的观点，写出完整的因果链条。';
   return pageHeader(pre ? 'BEFORE LEARNING / 前测' : 'TRANSFER / 后测', pre ? '战争，为什么会发生？' : '换个角度，还能推导吗？', pre ? '先用自己的语言，连接你已知的历史。暂时想不出来也没关系，可以选择跳过。' : '离开填空的提示，重新组织你的论证。试着把事件、矛盾与时代背景连接起来。', '主观简答 · 满分 10 分') + `<div class="divider"></div><section class="prompt-card" aria-label="${pre ? '前测' : '后测'}题目"><p class="prompt-caption">${pre ? '写下你的初始理解' : '请论证，而不只给判断'}</p><p class="prompt-text">${question}</p></section>${rubric()}<div class="answer-head"><label for="essay">${pre ? '我的初始思考' : '我的完整论证'}</label><span id="word-count">${state[mode + 'Text'].length} 字 · 不限字数</span></div><textarea id="essay" data-mode="${mode}" placeholder="${pre ? '你可以从最熟悉的一个事件出发，试着写下：因为……，所以……，进而……' : '先作出判断，再说明根本动因如何逐层推动冲突，最终转化为战争。'}">${esc(state[mode + 'Text'])}</textarea>${voiceControls('essay')}<p class="field-feedback" id="essay-error" role="status"></p><div id="essay-actions">${essayActions(mode)}</div><p class="under-note">参考评分不要求固定措辞。无法可靠判断的表述留待复核，不直接按错误扣分。</p>${footer()}`;
 }
+function previousLayerButton() { return `<button type="button" class="button secondary small previous-layer" data-action="previous-layer" ${state.active === 0 ? 'disabled' : ''}><span aria-hidden="true">←</span>返回上一层</button>`; }
 function layerCard(i) {
   const layer = layers[i], item = state.items[i];
-  return `<section class="layer-card current ${item.ok ? 'correct' : ''}" id="layer-${i}"><div class="layer-head"><div class="layer-name"><div><h3>${layer.title}</h3><small>${layer.subtitle}</small></div></div><span class="layer-status">${item.ok ? '✓ 已通过' : '当前探索'}</span></div><div class="layer-body"><label class="layer-question" for="layer-input-${i}">${layer.question}</label><textarea id="layer-input-${i}" data-layer-input="${i}" placeholder="写下你的理解，也可以点击麦克风直接说。">${esc(item.text)}</textarea>${voiceControls(`layer-input-${i}`)}<div class="layer-actions"><span class="quiet-meta">需要线索？点击顶部的“提示”。</span><div id="layer-check-action">${layerCheckAction(i)}</div></div><p class="field-feedback ${item.feedback?.ok ? 'success' : ''}" role="status" id="layer-feedback">${item.feedback ? esc(item.feedback.message) : ''}</p></div></section><div class="layer-bottom"><p class="quiet-meta">检验通过后继续；暂时没有思路也可以跳过。</p><button class="text-button" data-action="skip-layer">跳过这一层 <span aria-hidden="true">→</span></button></div>`;
+  return `<section class="layer-card current ${item.ok ? 'correct' : ''}" id="layer-${i}"><div class="layer-head"><div class="layer-name"><div><h3>${layer.title}</h3><small>${layer.subtitle}</small></div></div><span class="layer-status">${item.ok ? '✓ 已通过' : '当前探索'}</span></div><div class="layer-body"><label class="layer-question" for="layer-input-${i}">${layer.question}</label><textarea id="layer-input-${i}" data-layer-input="${i}" placeholder="写下你的理解，也可以点击麦克风直接说。">${esc(item.text)}</textarea>${voiceControls(`layer-input-${i}`)}<div class="layer-actions"><span class="quiet-meta">需要线索？点击顶部的“提示”。</span><div id="layer-check-action">${layerCheckAction(i)}</div></div><p class="field-feedback ${item.feedback?.ok ? 'success' : ''}" role="status" id="layer-feedback">${item.feedback ? esc(item.feedback.message) : ''}</p></div></section><div class="layer-bottom"><p class="quiet-meta">检验通过后继续；暂时没有思路也可以跳过。</p><div class="layer-nav">${previousLayerButton()}<button class="text-button" data-action="skip-layer">跳过这一层 <span aria-hidden="true">→</span></button></div></div>`;
 }
 function layerCheckAction(i) { return state.items[i].ok ? '<button class="button small" data-action="next-layer">继续推导 →</button>' : `<button class="button small" data-check="${i}">检验这一层 →</button>`; }
 function canvasPage() {
@@ -94,7 +95,7 @@ function canvasPage() {
 function connections() {
   const names = [['深层动因', '贸易矛盾'], ['贸易矛盾', '国内危机'], ['国内危机', '禁烟行动'], ['禁烟冲突', '战争爆发']];
   const skipped = state.items.filter(item => item.skipped).length;
-  return pageHeader('CONNECT THE DOTS / 连接因果', '把理解，连成一条因果链。', `从深层向事件复述，用自己的话说明“为什么 A 会推动 B”。${skipped ? `有 ${skipped} 层曾被跳过，可先按现有理解继续。` : ''}`, '从要素，到推动关系') + `<div class="divider"></div><section>${names.map(([a, b], i) => `<div class="connection"><label for="link-${i}">${a} <span aria-hidden="true">→</span> ${b}</label><textarea id="link-${i}" data-link="${i}" placeholder="说清两端的具体内容，以及它们如何相互推动。">${esc(state.links[i])}</textarea>${voiceControls(`link-${i}`)}</div>`).join('')}<p id="links-error" class="field-feedback" role="status"></p><div class="finish-row"><p class="quiet-meta">不必使用固定连接词，只要推动关系清楚。</p><button class="button" data-action="finish-training">完成推演，进入后测 →</button></div></section>${footer()}`;
+  return pageHeader('CONNECT THE DOTS / 连接因果', '把理解，连成一条因果链。', `从深层向事件复述，用自己的话说明“为什么 A 会推动 B”。${skipped ? `有 ${skipped} 层曾被跳过，可先按现有理解继续。` : ''}`, '从要素，到推动关系') + `<div class="divider"></div><div class="connection-back">${previousLayerButton()}</div><section>${names.map(([a, b], i) => `<div class="connection"><label for="link-${i}">${a} <span aria-hidden="true">→</span> ${b}</label><textarea id="link-${i}" data-link="${i}" placeholder="说清两端的具体内容，以及它们如何相互推动。">${esc(state.links[i])}</textarea>${voiceControls(`link-${i}`)}</div>`).join('')}<p id="links-error" class="field-feedback" role="status"></p><div class="finish-row"><p class="quiet-meta">不必使用固定连接词，只要推动关系清楚。</p><button class="button" data-action="finish-training">完成推演，进入后测 →</button></div></section>${footer()}`;
 }
 function reportPage() {
   const before = state.pre, after = state.post;
@@ -139,6 +140,10 @@ document.addEventListener('click', event => {
     if (state.page === 'pre') { state.skippedPre = !state.pre; return go('canvas'); }
     if (state.page === 'canvas') { state.skippedTraining = true; if (state.active === 5) state.skippedLinks = true; return go('post'); }
     if (state.page === 'post') { state.skippedPost = !state.post; return go('report'); }
+  }
+  if (action === 'previous-layer') {
+    if (state.page !== 'canvas' || state.active <= 0 || state.active > 5) return;
+    state.active--; return go('canvas');
   }
   if (action === 'skip-layer' || action === 'next-layer') {
     if (state.page !== 'canvas' || state.active >= 5) return; const item = state.items[state.active];
