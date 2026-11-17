@@ -7,11 +7,12 @@
   <meta name="description" content="第一次鸦片战争五层因果推演：用自主填空、阶梯提示与前后测，练习历史因果思维。">
   <title>知因 · 历史因果实验室</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=7">
-  <script src="./assessment.js?v=2" defer></script>
-  <script src="./logic.js?v=2" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=8">
+  <script src="./assessment.js?v=3" defer></script>
+  <script src="./logic.js?v=3" defer></script>
   <script src="./voice.js?v=2" defer></script>
-  <script src="./app.js?v=7" defer></script>
+  <script src="./practice.js?v=1" defer></script>
+  <script src="./app.js?v=8" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -27,7 +28,7 @@
       <div class="sidebar-rule"></div>
       <p class="current-stage" id="current-stage" aria-label="当前学习内容"></p>
       <div class="side-note"><span class="small-line" aria-hidden="true"></span><p>从一个事件，<br>追问到它背后的时代。</p><span>每一层，都由你推导。</span></div>
-      <div class="sidebar-bottom">HISTORY, THROUGH REASONING.<br><span>交互教学 Demo · 进度保存在本机</span></div>
+      <div class="sidebar-bottom">HISTORY, THROUGH REASONING.<br><span>交互教学 Demo · 刷新重新开始</span></div>
     </aside>
     <main id="main" tabindex="-1"></main>
   </div>
@@ -37,8 +38,8 @@
     <p>页面按顺序推进，只呈现当前内容。五层填空逐层展开，检验通过后才能继续；可点击“返回上一层”回看或修改，答案、提示使用记录会保留，连接因果页也可返回第五层。后测提交前、提交后及补做时，底部均可返回推演或跳过进入回顾，已填写的内容会保留；回顾页可返回后测补做或修改。第一层的返回按钮不可用。如暂时没有思路，可以点击“跳过这一层”，也可以用页面上方的“跳过”略过当前阶段。跳过会记录为未完成，不会记作零分。</p>
     <p>提示默认收起，点击顶部“提示”才会显示。首次只展示轻提示，需要更多线索时，再点击“再看深提示”。可随时点击“收起提示”，重新展开不会增加使用次数；刷新或切换题目后默认收起。每层都有独立的两级线索；前后测与连接题提供作答方法提醒。提示使用情况也会随学习记录导出。五层走完后连接传导关系，再做同维度后测。</p>
     <p>作答框旁可点击“语音输入”，用普通话口述，再点“停止输入”。识别的文字可继续编辑。首次使用需允许麦克风；识别服务可能由浏览器在线提供，是否可用取决于浏览器、设备及网络。本网站不保存录音。不支持时，可使用手机键盘自带的语音输入。</p>
-    <div class="notice"><strong>关于这份演示</strong><p>按概念含义、同义表达、传导关系与时序辅助评分，不要求固定原句。不能确定的维度留待复核，不直接当作错误。开放表述仍可能超出算法覆盖范围。本页不主动展示标准答案；静态网站的校验规则可被查看，真正保密的答案库需部署在后端。</p><p>作答文字与学习进度仅保存在当前浏览器。语音识别可能连接浏览器提供的在线服务，本网站不保存录音。可导出文字记录供教师复核。</p></div>
-    <button id="reset-button" class="button secondary full-width">清空本机记录，重新开始</button>
+    <div class="notice"><strong>关于这份演示</strong><p>按概念含义、同义表达、传导关系与时序辅助评分，不要求固定原句。不能确定的维度留待复核，不直接当作错误。开放表述仍可能超出算法覆盖范围。第一遍为前测：提交后显示分项得分，可选择查看参考答案。第二遍为后测：提交后直接展示参考答案，回顾页可查看全部题目的得分与答案。答案均可自行收起。推演与连接题提交后也可按需查看答案；空白提交不算完成。静态网站源码公开。</p><p>本次页面内返回、跳过会保留作答与提交次数；刷新或重新打开会回到空白前测的第一次作答，不恢复旧进度。语音识别可能连接浏览器提供的在线服务，本网站不保存录音。可导出文字记录供教师复核。</p></div>
+    <button id="reset-button" class="button secondary full-width">重新开始第一遍作答</button>
     <p class="reset-help" id="reset-help" role="status"></p>
   </dialog>
   <dialog id="feedback-dialog" aria-labelledby="feedback-title" aria-describedby="feedback-text">

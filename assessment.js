@@ -14,7 +14,7 @@
   const normalize = raw => String(raw).normalize('NFKC').replace(/[\t ]+/g, '').replace(/工業/g, '工业').replace(/英國/g, '英国').replace(/戰爭/g, '战争');
   const sentences = raw => normalize(raw).split(/[。！？!?；;\n]+/).filter(Boolean);
   const concepts = text => Object.keys(patterns).filter(key => patterns[key].test(text));
-  const relationCue = /导致|推动|促使|迫使|引发|造成|因此|因而|于是|从而|加剧|使得|使|借口|借机|借此|借题发挥|为由|所以|因为|由于|缘于|源于|出于|为了|为.{0,12}而|以便|以此|带来|带走|换走|赚走|换取|涌入|损害|危及|威胁|刺激|满足|打开|急需|需要|寻找|寻求|获取|抢占|决定|要求|被迫|→/;
+  const relationCue = /导致|推动|促使|迫使|引发|造成|扩大|增加|签订|借|因此|因而|于是|从而|加剧|使得|使|借口|借机|借此|借题发挥|为由|所以|因为|由于|缘于|源于|出于|为了|为.{0,12}而|以便|以此|带来|带走|换走|赚走|换取|涌入|损害|危及|威胁|刺激|满足|打开|急需|需要|寻找|寻求|获取|抢占|决定|要求|被迫|→/;
   const negativeRelation = /并未|并没有|没有|不会|不能|不曾|不可能|并非|无关|不是|不导致|未导致|未推动/;
   function affirmativeConcept(text, key) {
     if (!patterns[key].test(text)) return false;
@@ -45,7 +45,8 @@
         const local = unit.slice(mentions[i].index, mentions[i + 1].end);
         const prefix = unit.slice(Math.max(0, mentions[i].index - 4), mentions[i].index);
         const borrowedPretext = mentions[i].id === 'ban' && mentions[i + 1].id === 'war' && /借|以/.test(prefix);
-        if (!relationCue.test(local) && !/因为|由于|为了/.test(prefix) && !borrowedPretext) continue;
+        const borrowedPurpose = mentions[i].id === 'trade' && mentions[i + 1].id === 'opium' && /^为(?:了)?.{0,12}(改变|扭转|解决).{0,15}(逆差|入超)/.test(unit);
+        if (!relationCue.test(local) && !/因为|由于|为了/.test(prefix) && !borrowedPretext && !borrowedPurpose) continue;
         const pair = [mentions[i].id, mentions[i + 1].id].sort().join(':');
         if (!relations.some(item => item.pair === pair)) relations.push({ pair, evidence: unit });
       }
@@ -53,6 +54,19 @@
     return { text, clauses, found, relations };
   }
   function countRelations(raw) { return analyze(raw).relations.length; }
+  function gradeConnection(index, raw) {
+    if (!String(raw).trim()) return null;
+    const a = analyze(raw), { found: f, relations } = a;
+    if (contradictions(a.text).length || chronologyIssues(a.text).length || wrongRoot(a.text)) return 0;
+    const related = (x, y) => relations.some(r => r.pair === [x, y].sort().join(':'));
+    const correct = [
+      f.trade && (f.industry || f.expansion) && (related('industry', 'trade') || related('expansion', 'trade')),
+      f.trade && f.crisis && (related('trade', 'crisis') || related('trade', 'opium') && related('opium', 'crisis')),
+      f.crisis && f.ban && related('crisis', 'ban'),
+      f.ban && f.war && related('ban', 'war')
+    ];
+    return correct[index] ? 1 : null;
+  }
   function wrongRoot(text) {
     const clauses = sentences(text);
     return clauses.some((sentence, i) => {
@@ -141,7 +155,7 @@
     if (requested === 'post') return 'post';
     return state.post || state.skippedPost ? 'report' : 'post';
   }
-  const api = { analyze, validateLayer, gradeEssay, countRelations, firstUnfinishedLayer, resolvePage };
+  const api = { analyze, validateLayer, gradeEssay, gradeConnection, countRelations, firstUnfinishedLayer, resolvePage };
   scope.HistoryAssessment = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
