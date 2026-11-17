@@ -41,6 +41,13 @@ test('an unrelated rejection does not cancel a later root-cause error', () => {
   const result = gradeEssay('说英国没有工业革命是不正确的。虎门销烟是根本原因。');
   assert.equal(result.dimensions[0], 0);
 });
+test('separate trigger and root-cause clauses do not manufacture a root-cause error', () => {
+  for (const separator of ['，', ',']) {
+    const distinction = `虎门销烟是导火索${separator}根本动因是工业发展带来的扩张需求。`;
+    assert.deepEqual(gradeEssay(essays[0] + distinction).dimensions, [4, 3, 3]);
+  }
+  assert.equal(gradeEssay('贸易逆差是中间矛盾，虎门销烟是战争的根本原因。').dimensions[0], 0);
+});
 test('a leading causal word does not turn a noun list into a full argument', () => {
   const result = gradeEssay('因为工业革命、海外市场、贸易逆差、鸦片、财政危机、虎门销烟、发动侵华战争、南京条约。');
   assert.notEqual(result.total, 10);
