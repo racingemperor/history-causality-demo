@@ -31,10 +31,20 @@ const essays = [
   '英国借禁烟冲突发动侵华战争，战后清朝被迫签订南京条约。禁烟又是因为鸦片输入引发白银外流和财政危机。英国走私鸦片，是为了改变贸易逆差。再往深处看，工业革命使英国急需更多海外市场和原料。'
 ];
 for (const [i, essay] of essays.entries()) test(`complete argument ${i + 1} receives full credit without fixed wording or order`, () => assert.deepEqual(gradeEssay(essay).dimensions, [4, 3, 3]));
-test('unrecognized expression is deferred instead of marked wrong or zero', () => {
-  assert.equal(validateLayer(4, '机器带来的经济外向性改变了帝国的资源获取策略').type, 'review');
+test('every valid essay receives bounded numeric dimension scores and a summed total', () => {
+  const answers = ['秦始皇修建长城。', '因为所以因此推动', '1840', '虎门销烟是导火索。', '英国工业革命后需要开拓市场。', ...essays];
+  for (const answer of answers) {
+    const result = gradeEssay(answer);
+    result.dimensions.forEach((score, i) => assert.ok(Number.isInteger(score) && score >= 0 && score <= [4, 3, 3][i]));
+    assert.equal(result.total, result.dimensions.reduce((sum, n) => sum + n, 0));
+  }
+});
+test('answers without recognized scoring points receive zero instead of pending review', () => {
+  assert.equal(validateLayer(4, '机器带来的经济外向性改变了帝国的资源获取策略').type, 'incorrect');
   const result = gradeEssay('生产结构变迁与帝国利益的外向投射，在外交危机中交汇。');
-  assert.equal(result.total, null); assert.ok(result.dimensions.includes(null));
+  assert.equal(result.total, 0);
+  assert.deepEqual(result.dimensions, [0, 0, 0]);
+  assert.equal(result.needsTeacherReview, false);
 });
 test('wrong trade direction and denied economic harm never pass', () => {
   assert.equal(validateLayer(3, '中国对英贸易逆差').ok, false);

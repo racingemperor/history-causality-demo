@@ -1,25 +1,19 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { layers, validateLayer, gradeEssay, gradeConnection, referenceAnswers } = require('./logic.js');
-const { createSession, submitAttempt, revealAnswer, revealAfterPost, scoreLayer, essayScoreSummary } = require('./practice.js');
+const { createSession, submitAttempt, revealAnswer, revealAfterPost, scoreLayer } = require('./practice.js');
 
-test('partial scores remain visible without treating unresolved dimensions as zero', () => {
+test('partial answers retain earned points and missing dimensions receive zero', () => {
   const result = gradeEssay('英国工业革命后需要开拓市场。');
-  assert.deepEqual(result.dimensions, [2, null, 1]);
-  assert.equal(result.total, null);
-  const summary = essayScoreSummary(result);
-  assert.equal(summary.heading, '已识别得分 3 分');
-  assert.equal(summary.compact, '3–6');
-  assert.match(summary.description, /3 分待复核/);
-  assert.match(summary.description, /不按零分/);
+  assert.deepEqual(result.dimensions, [2, 0, 1]);
+  assert.equal(result.total, 3);
 });
 
-test('unknown wording is explained without inventing a zero or a final score', () => {
-  const result = gradeEssay('生产结构变迁与帝国利益的外向投射，在外交危机中交汇。');
-  assert.equal(essayScoreSummary(result).heading, '暂未识别到可评分依据');
-  assert.equal(essayScoreSummary(result).compact, '待补充');
-  assert.match(essayScoreSummary(result).description, /补充/);
-  assert.equal(essayScoreSummary(gradeEssay(referenceAnswers.pre)).heading, '参考得分 10 / 10');
+test('wrong answers score zero while empty answers remain unsubmitted', () => {
+  assert.equal(gradeEssay('这是因为秦始皇修建长城。').total, 0);
+  assert.equal(gradeEssay(''), null);
+  assert.equal(gradeEssay('。'), null);
+  assert.equal(gradeEssay(referenceAnswers.pre).total, 10);
 });
 
 test('pre-test offers optional answers and repeated pre-test submissions never force them open', () => {
@@ -59,13 +53,14 @@ test('a new page session starts at the first blank attempt without sharing old a
   assert.ok(Object.values(fresh.submissions).every(record => record.attempts.length === 0 && !record.answerVisible));
 });
 
-test('layer scores accept equivalent wording and keep unknown semantics pending', () => {
+test('layer scores accept equivalent wording and give other submitted answers zero', () => {
   assert.equal(scoreLayer(validateLayer(0, '林则徐烧掉了缴获的烟土')), 1);
   assert.equal(scoreLayer(validateLayer(4, '虎门销烟')), 0);
-  assert.equal(scoreLayer(validateLayer(4, '生产结构的外向投射改变了外交取向')), null);
+  assert.equal(scoreLayer(validateLayer(4, '生产结构的外向投射改变了外交取向')), 0);
+  assert.equal(scoreLayer(validateLayer(4, '')), null);
 });
 
-test('connection scores require the requested causal link and distinguish unknown from factual error', () => {
+test('connection scores give incorrect or unrelated answers zero and keep blanks unsubmitted', () => {
   const answers = [
     '英国工业革命使海外市场需求扩大，但英国对华贸易逆差，所以要求改变贸易局面。',
     '为了改变英国对华贸易逆差，商人走私鸦片。鸦片导致白银外流和财政危机。',
@@ -73,7 +68,7 @@ test('connection scores require the requested causal link and distinguish unknow
     '英国借禁烟冲突发动侵华战争。'
   ];
   answers.forEach((answer, i) => assert.equal(gradeConnection(i, answer), 1));
-  assert.equal(gradeConnection(0, '英国借禁烟冲突发动侵华战争'), null);
+  assert.equal(gradeConnection(0, '英国借禁烟冲突发动侵华战争'), 0);
   assert.equal(gradeConnection(1, '中国对英贸易逆差导致财政危机'), 0);
   assert.equal(gradeConnection(2, ''), null);
 });

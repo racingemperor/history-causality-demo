@@ -66,7 +66,7 @@
       f.crisis && f.ban && related('crisis', 'ban'),
       f.ban && f.war && related('ban', 'war')
     ];
-    return correct[index] ? 1 : null;
+    return correct[index] ? 1 : 0;
   }
   function wrongRoot(text) {
     const clauses = sentences(text);
@@ -119,7 +119,7 @@
     if (issues.length || wrongRoot(text)) return { ok: false, type: 'fact', message: `再核对一下：${issues[0] || '具体禁烟事件与长期扩张动因不能放在同一层级。'}请检查因果方向。` };
     if (layerConcepts(index, analysis)) return { ok: true, type: 'success', message: '意思与本层关键概念相符，已通过。无须改写成标准原句。' };
     if ([0, 1, 2, 3, 4].some(i => i !== index && layerConcepts(i, analysis))) return { ok: false, type: 'level', message: '【逻辑层级错误】当前内容更接近其他层级。请回到本层的问题，想想它要解释的是什么。' };
-    return { ok: false, type: 'review', message: '这段表述暂时无法可靠判断，未判错，也未扣分。可以补充说明、查看提示，或跳过保留原文待复核。' };
+    return { ok: false, type: 'incorrect', message: '本次作答未答到这一层的关键要点，本题得分为 0 分。请结合本层问题补充说明，也可以查看提示后再试。' };
   }
   function gradeEssay(raw) {
     if (!hasAnswerContent(raw)) return null;
@@ -128,23 +128,22 @@
     const related = (x, y) => relations.some(r => r.pair === [x, y].sort().join(':'));
     const root = f.industry && f.expansion && (related('industry', 'expansion') || /根本|深层|底层/.test(text));
     const trigger = f.ban && (related('ban', 'war') || a.clauses.some(c => patterns.ban.test(c) && /导火索|诱因|借口|触发|直接原因/.test(c) && !wrongRoot(c)));
-    const recognized = Object.values(f).filter(Boolean).length;
-    // Unknown wording is deferred, never converted to an automatic zero.
-    let distinction = rootError ? 0 : root && trigger ? 4 : root || trigger ? 2 : null;
+    // Award recognized scoring points; incorrect or missing points receive zero.
+    let distinction = rootError ? 0 : root && trigger ? 4 : root || trigger ? 2 : 0;
     if (facts.length) distinction = 0;
     const eventCount = ['crisis', 'ban', 'war', 'aftermath'].filter(key => f[key]).length;
-    let chronology = orderIssues.length ? 0 : eventCount >= 3 && related('ban', 'war') && (f.aftermath ? related('war', 'aftermath') : related('crisis', 'ban')) ? 3 : eventCount >= 2 && relations.some(r => /ban|war|aftermath/.test(r.pair)) ? 2 : null;
+    const chronology = orderIssues.length ? 0 : eventCount >= 3 && related('ban', 'war') && (f.aftermath ? related('war', 'aftermath') : related('crisis', 'ban')) ? 3 : eventCount >= 2 && relations.some(r => /ban|war|aftermath/.test(r.pair)) ? 2 : 0;
     const causalEdges = [['industry', 'expansion'], ['expansion', 'trade'], ['trade', 'opium'], ['opium', 'crisis'], ['crisis', 'ban'], ['ban', 'war'], ['war', 'aftermath']];
     const identified = causalEdges.filter(([x, y]) => related(x, y));
     // Three distinct, relevant links meet the 3-point rubric, regardless of sentence boundaries.
-    let transmission = identified.length ? Math.min(3, identified.length) : relationCue.test(text) ? null : recognized >= 3 ? 0 : null;
-    if (orderIssues.length || facts.length || rootError) transmission = Math.min(transmission ?? 0, 1);
+    let transmission = Math.min(3, identified.length);
+    if (orderIssues.length || facts.length || rootError) transmission = Math.min(transmission, 1);
     const dimensions = [distinction, chronology, transmission];
     return {
-      total: dimensions.includes(null) ? null : dimensions.reduce((sum, n) => sum + n, 0), dimensions,
-      notes: [rootError ? '发现将禁烟事件认作根本动因的表述。' : facts[0] || `长期动因${root ? '已识别' : '尚待确认'}；禁烟事件与开战的联系${trigger ? '已识别' : '尚待确认'}。`, orderIssues[0] || (chronology === 3 ? '已识别事件间的先后证据；论证倒叙不单独扣分。' : '时序证据尚不完整，可保留原文复核，不要求必须写年份。'), `已识别 ${identified.length} 组相关传导关系${transmission === null ? '；其余表述待复核' : ''}。不按指定句式或固定连接词评分。`],
+      total: dimensions.reduce((sum, n) => sum + n, 0), dimensions,
+      notes: [rootError ? '发现将禁烟事件认作根本动因的表述。' : facts[0] || `长期动因${root ? '已答到' : '未答到'}；禁烟事件与开战的联系${trigger ? '已答到' : '未答到'}。`, orderIssues[0] || (chronology === 3 ? '已识别事件间的先后证据；论证倒叙不单独扣分。' : '事件先后关系尚未完整说明，请补充事件间的联系，不要求必须写年份。'), `已识别 ${identified.length} 组相关传导关系，错误或未答到的要点计 0 分。不按指定句式或固定连接词评分。`],
       evidence: { concepts: Object.keys(f).filter(key => f[key]), relations, issues: [...facts, ...orderIssues, ...(rootError ? ['将禁烟事件认作根本动因'] : [])] },
-      method: 'concept-relations-v2', needsTeacherReview: true
+      method: 'concept-relations-v3', needsTeacherReview: false
     };
   }
   function firstUnfinishedLayer(items) { const i = items.findIndex(item => !item.ok && !item.skipped); return i < 0 ? items.length : i; }
