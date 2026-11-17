@@ -12,6 +12,7 @@
     aftermath: /南京条约|不平等条约|割地|赔款|割让香港|通商口岸|五口通商|半殖民地|主权.{0,5}(受损|破坏)|中国.{0,6}战败|清朝.{0,6}战败/
   };
   const normalize = raw => String(raw).normalize('NFKC').replace(/[\t ]+/g, '').replace(/工業/g, '工业').replace(/英國/g, '英国').replace(/戰爭/g, '战争');
+  const hasAnswerContent = raw => /[\p{L}\p{N}]/u.test(String(raw));
   const sentences = raw => normalize(raw).split(/[。！？!?；;\n]+/).filter(Boolean);
   const concepts = text => Object.keys(patterns).filter(key => patterns[key].test(text));
   const relationCue = /导致|推动|促使|迫使|引发|造成|扩大|增加|签订|借|因此|因而|于是|从而|加剧|使得|使|借口|借机|借此|借题发挥|为由|所以|因为|由于|缘于|源于|出于|为了|为.{0,12}而|以便|以此|带来|带走|换走|赚走|换取|涌入|损害|危及|威胁|刺激|满足|打开|急需|需要|寻找|寻求|获取|抢占|决定|要求|被迫|→/;
@@ -55,7 +56,7 @@
   }
   function countRelations(raw) { return analyze(raw).relations.length; }
   function gradeConnection(index, raw) {
-    if (!String(raw).trim()) return null;
+    if (!hasAnswerContent(raw)) return null;
     const a = analyze(raw), { found: f, relations } = a;
     if (contradictions(a.text).length || chronologyIssues(a.text).length || wrongRoot(a.text)) return 0;
     const related = (x, y) => relations.some(r => r.pair === [x, y].sort().join(':'));
@@ -113,7 +114,7 @@
   }
   function validateLayer(index, raw) {
     const analysis = analyze(raw), { text } = analysis;
-    if (!text.trim()) return { ok: false, type: 'empty', message: '先写下你的想法，不确定也没关系。也可以查看一级轻提示。' };
+    if (!hasAnswerContent(raw)) return { ok: false, type: 'empty', message: '请填写作答文字，只有标点或空格无法评分。也可以查看一级轻提示。' };
     const issues = contradictions(text);
     if (issues.length || wrongRoot(text)) return { ok: false, type: 'fact', message: `再核对一下：${issues[0] || '具体禁烟事件与长期扩张动因不能放在同一层级。'}请检查因果方向。` };
     if (layerConcepts(index, analysis)) return { ok: true, type: 'success', message: '意思与本层关键概念相符，已通过。无须改写成标准原句。' };
@@ -121,7 +122,7 @@
     return { ok: false, type: 'review', message: '这段表述暂时无法可靠判断，未判错，也未扣分。可以补充说明、查看提示，或跳过保留原文待复核。' };
   }
   function gradeEssay(raw) {
-    if (!String(raw).trim()) return null;
+    if (!hasAnswerContent(raw)) return null;
     const a = analyze(raw), { text, found: f, relations } = a;
     const facts = contradictions(text), orderIssues = chronologyIssues(text), rootError = wrongRoot(text);
     const related = (x, y) => relations.some(r => r.pair === [x, y].sort().join(':'));
@@ -155,7 +156,7 @@
     if (requested === 'post') return 'post';
     return state.post || state.skippedPost ? 'report' : 'post';
   }
-  const api = { analyze, validateLayer, gradeEssay, gradeConnection, countRelations, firstUnfinishedLayer, resolvePage };
+  const api = { analyze, hasAnswerContent, validateLayer, gradeEssay, gradeConnection, countRelations, firstUnfinishedLayer, resolvePage };
   scope.HistoryAssessment = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

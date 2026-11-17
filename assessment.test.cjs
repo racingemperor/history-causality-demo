@@ -2,6 +2,13 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { validateLayer, gradeEssay, resolvePage, firstUnfinishedLayer } = require('./logic.js');
 
+test('punctuation-only input is not a submitted answer', () => {
+  for (const answer of ['', '   ', '。', '，！？… ——\n', '...!?', '🎓']) {
+    assert.equal(gradeEssay(answer), null);
+    assert.equal(validateLayer(0, answer).type, 'empty');
+  }
+});
+
 const paraphrases = [
   [0, '虎门消烟'], [0, '林则徐烧掉了缴获的烟土'], [0, '在虎门把收缴的鸦片销毁了'],
   [1, '英方以保护鸦片贸易为名，借中国禁烟之机派舰队来华'],

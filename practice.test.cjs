@@ -1,7 +1,26 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { layers, validateLayer, gradeEssay, gradeConnection, referenceAnswers } = require('./logic.js');
-const { createSession, submitAttempt, revealAnswer, revealAfterPost, scoreLayer } = require('./practice.js');
+const { createSession, submitAttempt, revealAnswer, revealAfterPost, scoreLayer, essayScoreSummary } = require('./practice.js');
+
+test('partial scores remain visible without treating unresolved dimensions as zero', () => {
+  const result = gradeEssay('英国工业革命后需要开拓市场。');
+  assert.deepEqual(result.dimensions, [2, null, 1]);
+  assert.equal(result.total, null);
+  const summary = essayScoreSummary(result);
+  assert.equal(summary.heading, '已识别得分 3 分');
+  assert.equal(summary.compact, '3–6');
+  assert.match(summary.description, /3 分待复核/);
+  assert.match(summary.description, /不按零分/);
+});
+
+test('unknown wording is explained without inventing a zero or a final score', () => {
+  const result = gradeEssay('生产结构变迁与帝国利益的外向投射，在外交危机中交汇。');
+  assert.equal(essayScoreSummary(result).heading, '暂未识别到可评分依据');
+  assert.equal(essayScoreSummary(result).compact, '待补充');
+  assert.match(essayScoreSummary(result).description, /补充/);
+  assert.equal(essayScoreSummary(gradeEssay(referenceAnswers.pre)).heading, '参考得分 10 / 10');
+});
 
 test('pre-test offers optional answers and repeated pre-test submissions never force them open', () => {
   const session = createSession(layers), target = session.submissions.pre;
