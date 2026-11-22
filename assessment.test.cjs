@@ -74,10 +74,14 @@ test('an explicit denial of the trigger does not pass as the trigger', () => ass
 test('future pages stay gated until completion or an explicit skip', () => {
   const state = { items: Array.from({length:5}, () => ({ok:false, skipped:false})) };
   assert.equal(resolvePage(state, 'report'), 'pre');
+  assert.equal(resolvePage(state, 'map'), 'pre');
   state.skippedPre = true; assert.equal(resolvePage(state, 'post'), 'canvas');
+  assert.equal(resolvePage(state, 'map'), 'canvas');
   state.skippedTraining = true; assert.equal(resolvePage(state, 'report'), 'post');
+  assert.equal(resolvePage(state, 'map'), 'post');
   state.skippedPost = true; assert.equal(resolvePage(state, 'report'), 'report');
-  assert.equal(resolvePage(state, 'map'), 'report');
+  assert.equal(resolvePage(state, 'map'), 'map');
+  state.skippedPost = false;
   state.submissions = { post: { attempts: [{ text: '后测已提交' }] } };
   assert.equal(resolvePage(state, 'map'), 'map');
   state.items[0].skipped = true; assert.equal(firstUnfinishedLayer(state.items), 1);
