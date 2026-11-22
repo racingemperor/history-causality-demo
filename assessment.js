@@ -153,6 +153,7 @@
     if (requested === 'canvas') return 'canvas';
     if (!state.trained && !state.trainingFinished && !state.skippedTraining) return 'canvas';
     if (requested === 'post') return 'post';
+    if (requested === 'map' && state.submissions?.post.attempts.length) return 'map';
     return state.post || state.skippedPost ? 'report' : 'post';
   }
   const api = { analyze, hasAnswerContent, validateLayer, gradeEssay, gradeConnection, countRelations, firstUnfinishedLayer, resolvePage };

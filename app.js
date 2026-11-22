@@ -46,7 +46,7 @@ function updateHints() {
   const button = document.querySelector('[data-action="toggle-hints"]');
   button.innerHTML = hintButtonText(); button.setAttribute('aria-expanded', String(hintsOpen));
 }
-const pageHeader = (eyebrow, title, intro, meta) => `<div class="page-top"><span class="eyebrow">${eyebrow}</span><div class="page-tools"><span class="quiet-meta">${meta}</span>${state.page !== 'report' ? `<button class="hint-button header-hint" data-action="toggle-hints" aria-controls="page-hints" aria-expanded="${hintsOpen}">${hintButtonText()}</button><button class="skip-button" data-action="skip-stage" aria-label="跳过当前阶段">跳过 <span aria-hidden="true">↗</span></button>` : ''}</div></div><h2 class="page-heading">${title}</h2><p class="intro">${intro}</p>${state.page !== 'report' ? hintPanel() : ''}`;
+const pageHeader = (eyebrow, title, intro, meta) => `<div class="page-top"><span class="eyebrow">${eyebrow}</span><div class="page-tools"><span class="quiet-meta">${meta}</span>${['pre', 'canvas', 'post'].includes(state.page) ? `<button class="hint-button header-hint" data-action="toggle-hints" aria-controls="page-hints" aria-expanded="${hintsOpen}">${hintButtonText()}</button><button class="skip-button" data-action="skip-stage" aria-label="跳过当前阶段">跳过 <span aria-hidden="true">↗</span></button>` : ''}</div></div><h2 class="page-heading">${title}</h2><p class="intro">${intro}</p>${['pre', 'canvas', 'post'].includes(state.page) ? hintPanel() : ''}`;
 const footer = () => '<div class="bottom-caption"><span>知其然，也知其所以然。</span><span>刷新后重新开始第一遍作答 · 教学演示版</span></div>';
 function rubric() { return `<div class="rubric-strip">${rubricNames.map((name, i) => `<div class="rubric-item"><strong>${name}</strong><span>${[4, 3, 3][i]}<small> 分</small></span></div>`).join('')}</div>`; }
 function stageNavigation(backAction, backLabel, skipLabel) {
@@ -64,7 +64,7 @@ function essayActions(mode) {
   const result = state[mode], pre = mode === 'pre', record = state.submissions[mode];
   const answers = answerPanel(record, [referenceAnswers[mode]], mode);
   if (!result) return `<div class="test-bottom"><p class="quiet-meta">${record.attempts.length ? '修改后请重新提交评分。' : pre ? '前测提交后显示得分，可自行选择查看参考答案。' : '后测提交后显示得分，并自动展开参考答案。'}</p><button class="button" data-action="submit-${mode}">${record.attempts.length ? '再次' : ''}提交${pre ? '前测' : '后测'} <span aria-hidden="true">→</span></button></div>${answers}`;
-  return `<section class="result-inline" aria-label="参考评分"><h3>参考得分 ${result.total} / 10 <span class="quiet-meta">· 第 ${record.attempts.length} 次提交</span></h3><table class="score-table"><caption>本题各项得分</caption><thead><tr><th scope="col">评分项</th><th scope="col">得分</th></tr></thead><tbody>${rubricNames.map((name, i) => `<tr><th scope="row">${name}</th><td>${result.dimensions[i]} / ${[4, 3, 3][i]}</td></tr>`).join('')}</tbody></table>${result.notes.map(note => `<p>${esc(note)}</p>`).join('')}<div class="result-actions"><button class="button small" data-action="continue-essay">${pre ? '开始推演' : '查看学习回顾'} →</button><button class="button secondary small" data-action="submit-${mode}">再次提交${pre ? '前测' : '后测'}</button>${pre && result.total >= 8 ? '<button class="button secondary small" data-action="skip-training">跳过训练，进入后测</button>' : ''}</div></section>${answers}`;
+  return `<section class="result-inline" aria-label="参考评分"><h3>参考得分 ${result.total} / 10 <span class="quiet-meta">· 第 ${record.attempts.length} 次提交</span></h3><table class="score-table"><caption>本题各项得分</caption><thead><tr><th scope="col">评分项</th><th scope="col">得分</th></tr></thead><tbody>${rubricNames.map((name, i) => `<tr><th scope="row">${name}</th><td>${result.dimensions[i]} / ${[4, 3, 3][i]}</td></tr>`).join('')}</tbody></table>${result.notes.map(note => `<p>${esc(note)}</p>`).join('')}<div class="result-actions"><button class="button small" data-action="continue-essay">${pre ? '开始推演' : '查看因果推理图'} →</button>${pre ? '' : '<button class="button secondary small" data-action="open-report">查看得分回顾</button>'}<button class="button secondary small" data-action="submit-${mode}">再次提交${pre ? '前测' : '后测'}</button>${pre && result.total >= 8 ? '<button class="button secondary small" data-action="skip-training">跳过训练，进入后测</button>' : ''}</div></section>${answers}`;
 }
 function testPage(mode) {
   const pre = mode === 'pre';
@@ -101,6 +101,9 @@ function questionReview() {
     return `<div class="question-review-item"><h4>${title}</h4><p>${scores}</p>${answerPanel(record, answers, key)}</div>`;
   }).join('')}</section>`;
 }
+function causalMapPage() {
+  return pageHeader('CAUSAL MAP / 因果复盘', '把五层原因，连成完整推导。', '作答时，从事件向深处追问；复盘时，从根本动因出发，看看矛盾如何一步步推动历史。', '五层动因 → 战争 → 影响') + HistoryCausalMap.renderCausalMap(state) + `<div class="report-footer"><button class="button" data-action="open-report">查看得分回顾 →</button><button class="button secondary" data-action="review-post"><span aria-hidden="true">←</span>返回后测</button></div>${footer()}`;
+}
 function reportPage() {
   const before = state.pre, after = state.post;
   const comparable = before && after;
@@ -108,24 +111,24 @@ function reportPage() {
   const difference = n => n > 0 ? `+${n}` : String(n);
   const hints = state.items.reduce((n, item) => n + item.hints, 0);
   const title = delta === null ? '每一次思考，都有迹可循。' : delta > 0 ? `比起最初，前进了 ${delta} 分。` : delta === 0 ? '得分相同，再看看论证的质量。' : '回到薄弱的环节，再推导一次。';
-  return pageHeader('REFLECTION / 学习回顾', '从记住事件，到理解因果。', !before || !after ? '本次有测验被跳过或未提交，保留为未完成，不计零分，也不计算提升。' : '不同设问，同一套评分维度。看看你的论述在哪里变得更清晰。', '按要点评分 · 前后测对照') + `<div class="result-hero"><div><p>${delta === null ? '本次学习记录' : '参考总分变化'}</p><h2>${title}</h2><p>${state.skippedTraining ? '本次选择跳过部分或全部推演' : `通过 ${state.items.filter(x => x.ok).length} 层 · 跳过 ${state.items.filter(x => x.skipped).length} 层 · 使用 ${hints} 次提示`}</p></div><div class="score-pair"><div><div class="score-label">前测</div><span class="score">${before ? showScore(before) : '—'}<small>${before ? '/10' : ''}</small></span></div><span class="score-arrow" aria-hidden="true">→</span><div><div class="score-label">后测</div><span class="score">${after ? showScore(after) : '—'}<small>${after ? '/10' : ''}</small></span></div></div></div><table class="score-table"><caption class="quiet-meta">同维度参考评分对照</caption><thead><tr><th scope="col">评分维度</th><th scope="col">前测</th><th scope="col">后测</th><th scope="col">变化</th></tr></thead><tbody>${rubricNames.map((name, i) => { const a = before?.dimensions[i], b = after?.dimensions[i]; return `<tr><th scope="row">${name}（${[4, 3, 3][i]} 分）</th><td>${dimension(before, i)}</td><td>${dimension(after, i)}</td><td class="delta">${typeof a === 'number' && typeof b === 'number' ? difference(b - a) : '—'}</td></tr>`; }).join('')}</tbody></table>${after ? `<section class="report-details"><h3>这次论证的识别结果</h3>${after.notes.map(note => `<p>${esc(note)}</p>`).join('')}</section>` : ''}<div class="notice">系统按概念含义、传导关系和时序证据辅助判断，不要求原句或指定连接词。正确要点给分，错误或未答到的要点计 0 分；未提交与跳过不计零分。可导出原文、分项得分和识别依据。</div>${questionReview()}<details class="report-details"><summary>回看我的两次作答</summary><p>前测${before ? '' : ' · 未提交'}</p><div class="answer-record">${esc(state.preText || '本次未作答，不计为 0 分。')}</div><p>后测${after ? '' : ' · 未提交'}</p><div class="answer-record">${esc(state.postText || '本次未作答，不计为 0 分。')}</div></details><details class="report-details"><summary>回看推演与提示使用情况</summary>${state.items.map((item, i) => `<p><strong>${layers[i].title}</strong> · ${item.ok ? '已通过' : item.skipped ? '已跳过' : '未完成'} · 提示 ${item.hints}/2 · 检验 ${item.attempts.length} 次</p><div class="answer-record">${esc(item.text || '本次未填写')}</div>`).join('')}</details><div class="report-footer"><button class="button" data-action="export">导出学习记录 ↓</button><button class="button secondary" data-action="review-post" title="${after ? '修改后测作答' : '补做后测'}"><span aria-hidden="true">←</span>返回后测</button></div>${footer()}`;
+  return pageHeader('REFLECTION / 学习回顾', '从记住事件，到理解因果。', !before || !after ? '本次有测验被跳过或未提交，保留为未完成，不计零分，也不计算提升。' : '不同设问，同一套评分维度。看看你的论述在哪里变得更清晰。', '按要点评分 · 前后测对照') + `${state.submissions.post.attempts.length ? '<div class="map-entry"><p><strong>再把整个推导过程连起来。</strong><span>从根本动因到战争后果，沿箭头复盘。</span></p><button class="button" data-action="open-map">查看因果推理图 →</button></div>' : ''}<div class="result-hero"><div><p>${delta === null ? '本次学习记录' : '参考总分变化'}</p><h2>${title}</h2><p>${state.skippedTraining ? '本次选择跳过部分或全部推演' : `通过 ${state.items.filter(x => x.ok).length} 层 · 跳过 ${state.items.filter(x => x.skipped).length} 层 · 使用 ${hints} 次提示`}</p></div><div class="score-pair"><div><div class="score-label">前测</div><span class="score">${before ? showScore(before) : '—'}<small>${before ? '/10' : ''}</small></span></div><span class="score-arrow" aria-hidden="true">→</span><div><div class="score-label">后测</div><span class="score">${after ? showScore(after) : '—'}<small>${after ? '/10' : ''}</small></span></div></div></div><table class="score-table"><caption class="quiet-meta">同维度参考评分对照</caption><thead><tr><th scope="col">评分维度</th><th scope="col">前测</th><th scope="col">后测</th><th scope="col">变化</th></tr></thead><tbody>${rubricNames.map((name, i) => { const a = before?.dimensions[i], b = after?.dimensions[i]; return `<tr><th scope="row">${name}（${[4, 3, 3][i]} 分）</th><td>${dimension(before, i)}</td><td>${dimension(after, i)}</td><td class="delta">${typeof a === 'number' && typeof b === 'number' ? difference(b - a) : '—'}</td></tr>`; }).join('')}</tbody></table>${after ? `<section class="report-details"><h3>这次论证的识别结果</h3>${after.notes.map(note => `<p>${esc(note)}</p>`).join('')}</section>` : ''}<div class="notice">系统按概念含义、传导关系和时序证据辅助判断，不要求原句或指定连接词。正确要点给分，错误或未答到的要点计 0 分；未提交与跳过不计零分。可导出原文、分项得分和识别依据。</div>${questionReview()}<details class="report-details"><summary>回看我的两次作答</summary><p>前测${before ? '' : ' · 未提交'}</p><div class="answer-record">${esc(state.preText || '本次未作答，不计为 0 分。')}</div><p>后测${after ? '' : ' · 未提交'}</p><div class="answer-record">${esc(state.postText || '本次未作答，不计为 0 分。')}</div></details><details class="report-details"><summary>回看推演与提示使用情况</summary>${state.items.map((item, i) => `<p><strong>${layers[i].title}</strong> · ${item.ok ? '已通过' : item.skipped ? '已跳过' : '未完成'} · 提示 ${item.hints}/2 · 检验 ${item.attempts.length} 次</p><div class="answer-record">${esc(item.text || '本次未填写')}</div>`).join('')}</details><div class="report-footer"><button class="button" data-action="export">导出学习记录 ↓</button><button class="button secondary" data-action="review-post" title="${after ? '修改后测作答' : '补做后测'}"><span aria-hidden="true">←</span>返回后测</button></div>${footer()}`;
 }
 function render() {
   voice.cancel(); state.page = resolvePage(state, state.page);
-  document.getElementById('current-stage').textContent = { pre: '当前 · 初始思考', canvas: state.active === 5 ? '当前 · 连接因果' : '当前 · 因果推演', post: '当前 · 迁移检验', report: '当前 · 学习回顾' }[state.page];
-  main.innerHTML = state.page === 'pre' ? testPage('pre') : state.page === 'canvas' ? canvasPage() : state.page === 'post' ? testPage('post') : reportPage();
+  document.getElementById('current-stage').textContent = { pre: '当前 · 初始思考', canvas: state.active === 5 ? '当前 · 连接因果' : '当前 · 因果推演', post: '当前 · 迁移检验', report: '当前 · 学习回顾', map: '当前 · 因果复盘' }[state.page];
+  main.innerHTML = state.page === 'pre' ? testPage('pre') : state.page === 'canvas' ? canvasPage() : state.page === 'post' ? testPage('post') : state.page === 'map' ? causalMapPage() : reportPage();
 }
 document.addEventListener('click', event => {
   const button = event.target.closest('button'); if (!button) return;
   if (button.dataset.voice) return voice.start(button.dataset.voice);
-  if (button.dataset.action === 'toggle-hints' && state.page !== 'report') {
+  if (button.dataset.action === 'toggle-hints' && ['pre', 'canvas', 'post'].includes(state.page)) {
     const hint = currentHint();
     hintsOpen = !hintsOpen;
     if (hintsOpen && hint.owner[hint.key] === 0) { hint.owner[hint.key] = 1; }
     voice.cancel(); updateHints();
     return;
   }
-  if (button.dataset.action === 'deepen-hint' && state.page !== 'report' && hintsOpen) {
+  if (button.dataset.action === 'deepen-hint' && ['pre', 'canvas', 'post'].includes(state.page) && hintsOpen) {
     const hint = currentHint();
     if (hint.owner[hint.key] !== 1) return;
     hint.owner[hint.key] = 2; voice.cancel(); updateHints();
@@ -163,9 +166,11 @@ document.addEventListener('click', event => {
     if (action === 'skip-layer' && !item.ok) item.skipped = true;
     state.active++; return go('canvas');
   }
-  if (action === 'continue-essay' && state[state.page]) return go(state.page === 'pre' ? 'canvas' : 'report');
+  if (action === 'continue-essay' && state[state.page]) return go(state.page === 'pre' ? 'canvas' : 'map');
   if (action === 'skip-training' && state.pre?.total >= 8) { state.skippedTraining = true; return go('post'); }
-  if (action === 'review-post' && state.page === 'report') return go('post');
+  if (action === 'open-map' && state.page === 'report' && state.submissions.post.attempts.length) return go('map');
+  if (action === 'open-report' && (state.page === 'map' || state.page === 'post' && state.post)) return go('report');
+  if (action === 'review-post' && ['report', 'map'].includes(state.page)) return go('post');
   if (action === 'submit-pre' || action === 'submit-post') {
     const mode = action.endsWith('pre') ? 'pre' : 'post'; if (state.page !== mode) return;
     if (!hasAnswerContent(state[mode + 'Text'])) { document.getElementById('essay-error').textContent = '请填写作答文字，只有标点或空格无法评分。暂时没有思路也可以点击上方“跳过”。'; document.getElementById('essay').focus(); return; }

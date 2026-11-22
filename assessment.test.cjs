@@ -77,6 +77,9 @@ test('future pages stay gated until completion or an explicit skip', () => {
   state.skippedPre = true; assert.equal(resolvePage(state, 'post'), 'canvas');
   state.skippedTraining = true; assert.equal(resolvePage(state, 'report'), 'post');
   state.skippedPost = true; assert.equal(resolvePage(state, 'report'), 'report');
+  assert.equal(resolvePage(state, 'map'), 'report');
+  state.submissions = { post: { attempts: [{ text: '后测已提交' }] } };
+  assert.equal(resolvePage(state, 'map'), 'map');
   state.items[0].skipped = true; assert.equal(firstUnfinishedLayer(state.items), 1);
   state.items[1].ok = true; assert.equal(firstUnfinishedLayer(state.items), 2);
 });
