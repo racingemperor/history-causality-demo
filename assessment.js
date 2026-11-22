@@ -146,7 +146,7 @@
       method: 'concept-relations-v3', needsTeacherReview: false
     };
   }
-  function firstUnfinishedLayer(items) { const i = items.findIndex(item => !item.ok && !item.skipped); return i < 0 ? items.length : i; }
+  function firstUnfinishedLayer(items) { const i = items.findIndex(item => !item.feedback && !item.skipped); return i < 0 ? items.length : i; }
   function resolvePage(state, requested) {
     if (requested === 'pre') return 'pre';
     if (!state.pre && !state.skippedPre) return 'pre';

@@ -9,12 +9,12 @@
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css?v=8">
   <link rel="stylesheet" href="./causal-map.css?v=1">
-  <script src="./assessment.js?v=8" defer></script>
+  <script src="./assessment.js?v=9" defer></script>
   <script src="./logic.js?v=3" defer></script>
   <script src="./voice.js?v=2" defer></script>
-  <script src="./practice.js?v=3" defer></script>
+  <script src="./practice.js?v=4" defer></script>
   <script src="./causal-map.js?v=1" defer></script>
-  <script src="./app.js?v=12" defer></script>
+  <script src="./app.js?v=13" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -37,19 +37,13 @@
   <dialog id="about-dialog" aria-labelledby="about-title">
     <div class="dialog-top"><span class="eyebrow">使用说明</span><button class="icon-button" id="close-about" aria-label="关闭学习说明">×</button></div>
     <h2 id="about-title">把“为什么”再往下问一层。</h2>
-    <p>页面按顺序推进，只呈现当前内容。五层填空逐层展开，检验通过后才能继续；可点击“返回上一层”回看或修改，答案、提示使用记录会保留，连接因果页也可返回第五层。后测提交前、提交后及补做时，底部均可返回推演或跳过进入回顾，已填写的内容会保留；回顾页可返回后测补做或修改。第一层的返回按钮不可用。如暂时没有思路，可以点击“跳过这一层”，也可以用页面上方的“跳过”略过当前阶段。跳过会记录为未完成，不会记作零分。</p>
+    <p>页面按顺序推进，只呈现当前内容。五层填空逐层展开，有效提交后即可继续，不要求答对或满分；可点击“返回上一层”回看或修改，答案、提示使用记录会保留，连接因果页也可返回第五层。后测提交前、提交后及补做时，底部均可返回推演或跳过进入回顾，已填写的内容会保留；回顾页可返回后测补做或修改。第一层的返回按钮不可用。如暂时没有思路，可以点击“跳过这一层”，也可以用页面上方的“跳过”略过当前阶段。跳过会记录为未完成，不会记作零分。</p>
     <p>提示默认收起，点击顶部“提示”才会显示。首次只展示轻提示，需要更多线索时，再点击“再看深提示”。可随时点击“收起提示”，重新展开不会增加使用次数；刷新或切换题目后默认收起。每层都有独立的两级线索；前后测与连接题提供作答方法提醒。提示使用情况也会随学习记录导出。五层走完后连接传导关系，再做同维度后测。</p>
     <p>提交后测后，可点击“查看因果推理图”；跳过后测或全部题目后，学习回顾页同样提供导图入口。从深层根本动因沿箭头推到战争爆发和战后影响，点击节点可展开参考解释与自己的作答，再次点击收起。图中明确区分根本动因、导火索和出兵决策。学习回顾页也可再次打开导图，或返回后测补做。跳过的题目仍记录为未完成，不记零分。</p>
     <p>作答框旁可点击“语音输入”，用普通话口述，再点“停止输入”。识别的文字可继续编辑。首次使用需允许麦克风；识别服务可能由浏览器在线提供，是否可用取决于浏览器、设备及网络。本网站不保存录音。不支持时，可使用手机键盘自带的语音输入。</p>
-    <div class="notice"><strong>关于这份演示</strong><p>按概念含义、同义表达、传导关系与时序辅助评分，不要求固定原句。正确要点给分，错误或未答到的要点计 0 分，部分正确保留相应得分。第一遍为前测：提交后显示分项得分，可选择查看参考答案。第二遍为后测：提交后直接展示参考答案，回顾页可查看全部题目的得分与答案。答案均可自行收起。推演与连接题提交后也可按需查看答案；空白提交不算完成。静态网站源码公开。</p><p>本次页面内返回、跳过会保留作答与提交次数；刷新或重新打开会回到空白前测的第一次作答，不恢复旧进度。语音识别可能连接浏览器提供的在线服务，本网站不保存录音。可导出文字与评分记录。</p></div>
+    <div class="notice"><strong>关于这份演示</strong><p>按概念含义、同义表达、传导关系与时序辅助评分，不要求固定原句。正确要点给分，错误或未答到的要点计 0 分，部分正确保留相应得分。第一遍为前测：提交后显示分项得分，可选择查看参考答案。第二遍为后测：提交后直接展示参考答案，回顾页可查看全部题目的得分与答案。答案均可自行收起。推演与连接题默认只确认提交成功，最终回顾统一汇总9道练习中已评分题目的分数；不与前后测分数混加。可随时主动查看本题答案与得分，提交前也可看参考答案。查看答案不算提交、不产生分数或扣分；空白提交不算完成。静态网站源码公开。</p><p>本次页面内返回、跳过会保留作答与提交次数；刷新或重新打开会回到空白前测的第一次作答，不恢复旧进度。语音识别可能连接浏览器提供的在线服务，本网站不保存录音。可导出文字与评分记录。</p></div>
     <button id="reset-button" class="button secondary full-width">重新开始第一遍作答</button>
     <p class="reset-help" id="reset-help" role="status"></p>
-  </dialog>
-  <dialog id="feedback-dialog" aria-labelledby="feedback-title" aria-describedby="feedback-text">
-    <span class="eyebrow">再想一想</span>
-    <h2 id="feedback-title">换个角度，再试一次。</h2>
-    <p id="feedback-text"></p>
-    <form method="dialog"><button class="button full-width">继续思考</button></form>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>

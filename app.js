@@ -1,7 +1,7 @@
 /* 知因 · Sequential learning demo. Answers remain in the current browser. */
 'use strict';
 const { layers, hasAnswerContent, validateLayer, gradeEssay, gradeConnection, resolvePage, firstUnfinishedLayer, referenceAnswers } = HistoryLogic;
-const { submitAttempt, revealAnswer, revealAfterPost, scoreLayer } = HistoryPractice;
+const { submitAttempt, revealAnswer, revealAfterPost, scoreLayer, summarizePractice } = HistoryPractice;
 const fresh = () => HistoryPractice.createSession(layers);
 let state = fresh();
 let toastTimer, resetArmed = false, hintsOpen = false;
@@ -56,9 +56,24 @@ function submission(key) {
   if (/^layer-[0-4]$/.test(key)) return state.items[+key.slice(-1)];
   return state.submissions[key];
 }
+function answerButtonText(key, visible) {
+  const practice = key === 'connections' || key.startsWith('layer-');
+  return visible ? practice ? '收起答案与得分' : '收起参考答案' : practice ? '查看答案与得分' : '查看参考答案';
+}
 function answerPanel(target, answers, key) {
-  if (!target.attempts.length && !state.submissions.post.attempts.length) return '';
-  return `<section class="reference-panel" aria-label="参考答案"><button type="button" class="button secondary small" data-action="toggle-reference" data-reference="${key}" aria-expanded="${target.answerVisible}" aria-controls="reference-${key}">${target.answerVisible ? '收起参考答案' : '查看参考答案'}</button><div class="reference-answer" id="reference-${key}" ${target.answerVisible ? '' : 'hidden'}><h3>参考答案</h3>${answers.map((answer, i) => `<p>${answers.length > 1 ? `<strong>${i + 1}.</strong> ` : ''}${esc(answer)}</p>`).join('')}<p class="quiet-meta">这是参考表达，意思正确即可，不要求逐字一致。</p></div></section>`;
+  return `<section class="reference-panel" aria-label="参考答案"><button type="button" class="button secondary small" data-action="toggle-reference" data-reference="${key}" aria-expanded="${target.answerVisible}" aria-controls="reference-${key}">${answerButtonText(key, target.answerVisible)}</button><div class="reference-answer" id="reference-${key}" ${target.answerVisible ? '' : 'hidden'}><h3>参考答案</h3>${practiceAnswerScore(key)}${answers.map((answer, i) => `<p>${answers.length > 1 ? `<strong>${i + 1}.</strong> ` : ''}${esc(answer)}</p>`).join('')}<p class="quiet-meta">这是参考表达，意思正确即可，不要求逐字一致。</p></div></section>`;
+}
+function practiceAnswerScore(key) {
+  if (key.startsWith('layer-')) {
+    const item = submission(key);
+    return item.feedback ? `<p class="question-score">本题得分：${scoreLayer(item.feedback)} / 1</p><p>${esc(item.feedback.message)}</p>` : '<p class="quiet-meta">当前作答尚未提交评分。查看答案不会产生分数。</p>';
+  }
+  if (key !== 'connections') return '';
+  return state.linkResults ? `<table class="score-table"><caption>各连接题得分</caption><tbody>${state.linkResults.map((score, i) => `<tr><th scope="row">连接题 ${i + 1}</th><td>${score === null ? '未作答' : score + ' / 1'}</td></tr>`).join('')}</tbody></table>` : '<p class="quiet-meta">当前连接作答尚未提交评分。查看答案不会产生分数。</p>';
+}
+function refreshPracticeAnswer(key) {
+  const target = submission(key), answers = key === 'connections' ? referenceAnswers.connections : [referenceAnswers.layers[+key.slice(-1)]];
+  document.querySelector('.reference-panel').outerHTML = answerPanel(target, answers, key);
 }
 function essayActions(mode) {
   const result = state[mode], pre = mode === 'pre', record = state.submissions[mode];
@@ -74,17 +89,23 @@ function testPage(mode) {
 function previousLayerButton() { return `<button type="button" class="button secondary small previous-layer" data-action="previous-layer" ${state.active === 0 ? 'disabled' : ''}><span aria-hidden="true">←</span>返回上一层</button>`; }
 function layerCard(i) {
   const layer = layers[i], item = state.items[i];
-  return `<section class="layer-card current ${item.ok ? 'correct' : ''}" id="layer-${i}"><div class="layer-head"><div class="layer-name"><div><h3>${layer.title}</h3><small>${layer.subtitle}</small></div></div><span class="layer-status">${item.ok ? '✓ 已通过' : '当前探索'}</span></div><div class="layer-body"><label class="layer-question" for="layer-input-${i}">${layer.question}</label><textarea id="layer-input-${i}" data-layer-input="${i}" placeholder="写下你的理解，也可以点击麦克风直接说。">${esc(item.text)}</textarea>${voiceControls(`layer-input-${i}`)}<div class="layer-actions"><span class="quiet-meta">需要线索？点击顶部的“提示”。</span><div id="layer-check-action">${layerCheckAction(i)}</div></div><p class="field-feedback ${item.feedback?.ok ? 'success' : ''}" role="status" id="layer-feedback">${item.feedback ? esc(item.feedback.message) : ''}</p><div id="layer-score">${item.feedback ? `<p class="question-score">本题得分：${scoreLayer(item.feedback)} / 1 · 第 ${item.attempts.length} 次提交</p>` : ''}</div>${answerPanel(item, [referenceAnswers.layers[i]], `layer-${i}`)}</div></section><div class="layer-bottom"><p class="quiet-meta">检验通过后继续；暂时没有思路也可以跳过。</p><div class="layer-nav">${previousLayerButton()}<button class="button secondary small skip-layer" data-action="skip-layer">跳过这一层 <span aria-hidden="true">→</span></button></div></div>`;
+  return `<section class="layer-card current" id="layer-${i}"><div class="layer-head"><div class="layer-name"><div><h3>${layer.title}</h3><small>${layer.subtitle}</small></div></div><span class="layer-status">${item.feedback ? '已提交' : '当前探索'}</span></div><div class="layer-body"><label class="layer-question" for="layer-input-${i}">${layer.question}</label><textarea id="layer-input-${i}" data-layer-input="${i}" placeholder="写下你的理解，也可以点击麦克风直接说。">${esc(item.text)}</textarea>${voiceControls(`layer-input-${i}`)}<div class="layer-actions"><span class="quiet-meta">需要线索？点击顶部的“提示”。</span><div id="layer-check-action">${layerCheckAction(i)}</div></div><p class="field-feedback success" role="status" id="layer-feedback">${item.feedback ? '作答已提交，可以继续下一题；得分将在最后汇总，也可主动查看参考答案与得分。' : ''}</p>${answerPanel(item, [referenceAnswers.layers[i]], `layer-${i}`)}</div></section><div class="layer-bottom"><p class="quiet-meta">提交后即可继续，分数不限制前进；未作答也可以跳过。</p><div class="layer-nav">${previousLayerButton()}<button class="button secondary small skip-layer" data-action="skip-layer">跳过这一层 <span aria-hidden="true">→</span></button></div></div>`;
 }
-function layerCheckAction(i) { return `<div class="result-actions layer-submit"><button class="button ${state.items[i].ok ? 'secondary ' : ''}small" data-check="${i}">${state.items[i].attempts.length ? '再次提交这一层' : '提交这一层'} →</button>${state.items[i].ok ? '<button class="button small" data-action="next-layer">继续推导 →</button>' : ''}</div>`; }
+function layerCheckAction(i) { return `<div class="result-actions layer-submit"><button class="button ${state.items[i].feedback ? 'secondary ' : ''}small" data-check="${i}">${state.items[i].attempts.length ? '再次提交这一层' : '提交这一层'} →</button>${state.items[i].feedback ? '<button class="button small" data-action="next-layer">继续推导 →</button>' : ''}</div>`; }
 function connectionFeedback() {
   if (!state.linkResults) return '';
-  return `<section class="result-inline" aria-label="连接题得分"><h3>各连接题得分 · 第 ${state.submissions.connections.attempts.length} 次提交</h3><table class="score-table"><thead><tr><th scope="col">题目</th><th scope="col">得分</th></tr></thead><tbody>${state.linkResults.map((result, i) => `<tr><th scope="row">连接题 ${i + 1}</th><td>${result === null ? '未作答' : result + ' / 1'}</td></tr>`).join('')}</tbody></table><p>关系正确得 1 分，错误或未说明所问关系得 0 分；未作答不计零分。</p>${state.linkResults.every(n => n === 1) ? '<div class="result-actions"><button class="button small" data-action="continue-training">进入后测 →</button></div>' : ''}</section>`;
+  return `<section class="result-inline" aria-label="连接题提交状态"><h3>连接作答已提交</h3><p>第 ${state.submissions.connections.attempts.length} 次提交已记录，可以继续。得分将在最后汇总，也可主动查看参考答案与得分。</p><div class="result-actions"><button class="button small" data-action="continue-training">进入后测 →</button></div></section>`;
 }
 function canvasPage() {
   if (state.active === 5) return connections();
-  const resolved = state.items.filter(item => item.ok || item.skipped).length;
-  return pageHeader('REASONING CANVAS / 推演画布', '沿着事件，向深处追问。', '每次专注一层，先写下理解，再检验自己的因果定位。后面的内容会随推演逐步展开。', '自主推演 · 阶梯提示') + `<div class="progress-summary"><span>已探索 ${resolved} 层</span><div class="progress-track" role="progressbar" aria-label="五层推演进度" aria-valuenow="${resolved}" aria-valuemin="0" aria-valuemax="5"><div class="progress-fill" style="width:${resolved * 20}%"></div></div></div>${layerCard(state.active)}${footer()}`;
+  const resolved = state.items.filter(item => item.feedback || item.skipped).length;
+  return pageHeader('REASONING CANVAS / 推演画布', '沿着事件，向深处追问。', '每次专注一层，先写下理解，提交后即可继续。需要时可查看参考答案，最后统一回顾得分。', '自主推演 · 阶梯提示') + `<div class="progress-summary"><span>已提交或跳过 ${resolved} 层</span><div class="progress-track" role="progressbar" aria-label="五层推演进度" aria-valuenow="${resolved}" aria-valuemin="0" aria-valuemax="5"><div class="progress-fill" style="width:${resolved * 20}%"></div></div></div>${layerCard(state.active)}${footer()}`;
+}
+function updateCanvasProgress() {
+  const resolved = state.items.filter(item => item.feedback || item.skipped).length;
+  document.querySelector('.progress-summary > span').textContent = `已提交或跳过 ${resolved} 层`;
+  document.querySelector('.progress-track').setAttribute('aria-valuenow', String(resolved));
+  document.querySelector('.progress-fill').style.width = `${resolved * 20}%`;
 }
 function connections() {
   const names = [['深层动因', '贸易矛盾'], ['贸易矛盾', '国内危机'], ['国内危机', '禁烟行动'], ['禁烟冲突', '战争爆发']];
@@ -104,6 +125,10 @@ function questionReview() {
 function causalMapPage() {
   return pageHeader('CAUSAL MAP / 因果复盘', '把五层原因，连成完整推导。', '作答时，从事件向深处追问；复盘时，从根本动因出发，看看矛盾如何一步步推动历史。', '五层动因 → 战争 → 影响') + HistoryCausalMap.renderCausalMap(state) + `<div class="report-footer"><button class="button" data-action="open-report">查看得分回顾 →</button><button class="button secondary" data-action="review-post"><span aria-hidden="true">←</span>返回后测</button></div>${footer()}`;
 }
+function practiceSummary() {
+  const score = summarizePractice(state);
+  return `<section class="result-inline" aria-label="练习得分汇总"><h3>练习得分：${score.earned === null ? '未评分' : score.earned + ' / ' + score.graded}</h3><p>五层填空与四道连接题共 ${score.maximum} 分；当前 ${score.graded} 题已评分，${score.maximum - score.graded} 题未评分。未提交、跳过或修改后未重交的题不计入本次分数。前测、后测各自按 10 分显示。</p></section>`;
+}
 function reportPage() {
   const before = state.pre, after = state.post;
   const comparable = before && after;
@@ -111,7 +136,7 @@ function reportPage() {
   const difference = n => n > 0 ? `+${n}` : String(n);
   const hints = state.items.reduce((n, item) => n + item.hints, 0);
   const title = delta === null ? '每一次思考，都有迹可循。' : delta > 0 ? `比起最初，前进了 ${delta} 分。` : delta === 0 ? '得分相同，再看看论证的质量。' : '回到薄弱的环节，再推导一次。';
-  return pageHeader('REFLECTION / 学习回顾', '从记住事件，到理解因果。', !before || !after ? '本次有测验被跳过或未提交，保留为未完成，不计零分，也不计算提升。' : '不同设问，同一套评分维度。看看你的论述在哪里变得更清晰。', '按要点评分 · 前后测对照') + `<div class="map-entry"><p><strong>再把整个推导过程连起来。</strong><span>从根本动因到战争后果，沿箭头复盘。</span></p><button class="button" data-action="open-map">查看因果推理图 →</button></div><div class="result-hero"><div><p>${delta === null ? '本次学习记录' : '参考总分变化'}</p><h2>${title}</h2><p>${state.skippedTraining ? '本次选择跳过部分或全部推演' : `通过 ${state.items.filter(x => x.ok).length} 层 · 跳过 ${state.items.filter(x => x.skipped).length} 层 · 使用 ${hints} 次提示`}</p></div><div class="score-pair"><div><div class="score-label">前测</div><span class="score">${before ? showScore(before) : '—'}<small>${before ? '/10' : ''}</small></span></div><span class="score-arrow" aria-hidden="true">→</span><div><div class="score-label">后测</div><span class="score">${after ? showScore(after) : '—'}<small>${after ? '/10' : ''}</small></span></div></div></div><table class="score-table"><caption class="quiet-meta">同维度参考评分对照</caption><thead><tr><th scope="col">评分维度</th><th scope="col">前测</th><th scope="col">后测</th><th scope="col">变化</th></tr></thead><tbody>${rubricNames.map((name, i) => { const a = before?.dimensions[i], b = after?.dimensions[i]; return `<tr><th scope="row">${name}（${[4, 3, 3][i]} 分）</th><td>${dimension(before, i)}</td><td>${dimension(after, i)}</td><td class="delta">${typeof a === 'number' && typeof b === 'number' ? difference(b - a) : '—'}</td></tr>`; }).join('')}</tbody></table>${after ? `<section class="report-details"><h3>这次论证的识别结果</h3>${after.notes.map(note => `<p>${esc(note)}</p>`).join('')}</section>` : ''}<div class="notice">系统按概念含义、传导关系和时序证据辅助判断，不要求原句或指定连接词。正确要点给分，错误或未答到的要点计 0 分；未提交与跳过不计零分。可导出原文、分项得分和识别依据。</div>${questionReview()}<details class="report-details"><summary>回看我的两次作答</summary><p>前测${before ? '' : ' · 未提交'}</p><div class="answer-record">${esc(state.preText || '本次未作答，不计为 0 分。')}</div><p>后测${after ? '' : ' · 未提交'}</p><div class="answer-record">${esc(state.postText || '本次未作答，不计为 0 分。')}</div></details><details class="report-details"><summary>回看推演与提示使用情况</summary>${state.items.map((item, i) => `<p><strong>${layers[i].title}</strong> · ${item.ok ? '已通过' : item.skipped ? '已跳过' : '未完成'} · 提示 ${item.hints}/2 · 检验 ${item.attempts.length} 次</p><div class="answer-record">${esc(item.text || '本次未填写')}</div>`).join('')}</details><div class="report-footer"><button class="button" data-action="export">导出学习记录 ↓</button><button class="button secondary" data-action="review-post" title="${after ? '修改后测作答' : '补做后测'}"><span aria-hidden="true">←</span>返回后测</button></div>${footer()}`;
+  return pageHeader('REFLECTION / 学习回顾', '从记住事件，到理解因果。', !before || !after ? '本次有测验被跳过或未提交，保留为未完成，不计零分，也不计算提升。' : '不同设问，同一套评分维度。看看你的论述在哪里变得更清晰。', '按要点评分 · 前后测对照') + `<div class="map-entry"><p><strong>再把整个推导过程连起来。</strong><span>从根本动因到战争后果，沿箭头复盘。</span></p><button class="button" data-action="open-map">查看因果推理图 →</button></div>${practiceSummary()}<div class="result-hero"><div><p>${delta === null ? '本次学习记录' : '参考总分变化'}</p><h2>${title}</h2><p>${state.skippedTraining ? '本次选择跳过部分或全部推演' : `提交 ${state.items.filter(x => x.feedback).length} 层 · 跳过 ${state.items.filter(x => x.skipped).length} 层 · 使用 ${hints} 次提示`}</p></div><div class="score-pair"><div><div class="score-label">前测</div><span class="score">${before ? showScore(before) : '—'}<small>${before ? '/10' : ''}</small></span></div><span class="score-arrow" aria-hidden="true">→</span><div><div class="score-label">后测</div><span class="score">${after ? showScore(after) : '—'}<small>${after ? '/10' : ''}</small></span></div></div></div><table class="score-table"><caption class="quiet-meta">同维度参考评分对照</caption><thead><tr><th scope="col">评分维度</th><th scope="col">前测</th><th scope="col">后测</th><th scope="col">变化</th></tr></thead><tbody>${rubricNames.map((name, i) => { const a = before?.dimensions[i], b = after?.dimensions[i]; return `<tr><th scope="row">${name}（${[4, 3, 3][i]} 分）</th><td>${dimension(before, i)}</td><td>${dimension(after, i)}</td><td class="delta">${typeof a === 'number' && typeof b === 'number' ? difference(b - a) : '—'}</td></tr>`; }).join('')}</tbody></table>${after ? `<section class="report-details"><h3>这次论证的识别结果</h3>${after.notes.map(note => `<p>${esc(note)}</p>`).join('')}</section>` : ''}<div class="notice">系统按概念含义、传导关系和时序证据辅助判断，不要求原句或指定连接词。正确要点给分，错误或未答到的要点计 0 分；未提交与跳过不计零分。可导出原文、分项得分和识别依据。</div>${questionReview()}<details class="report-details"><summary>回看我的两次作答</summary><p>前测${before ? '' : ' · 未提交'}</p><div class="answer-record">${esc(state.preText || '本次未作答，不计为 0 分。')}</div><p>后测${after ? '' : ' · 未提交'}</p><div class="answer-record">${esc(state.postText || '本次未作答，不计为 0 分。')}</div></details><details class="report-details"><summary>回看推演与提示使用情况</summary>${state.items.map((item, i) => `<p><strong>${layers[i].title}</strong> · ${item.feedback ? '已提交' : item.skipped ? '已跳过' : '未完成'} · 提示 ${item.hints}/2 · 检验 ${item.attempts.length} 次</p><div class="answer-record">${esc(item.text || '本次未填写')}</div>`).join('')}</details><div class="report-footer"><button class="button" data-action="export">导出学习记录 ↓</button><button class="button secondary" data-action="review-post" title="${after ? '修改后测作答' : '补做后测'}"><span aria-hidden="true">←</span>返回后测</button></div>${footer()}`;
 }
 function render() {
   voice.cancel(); state.page = resolvePage(state, state.page);
@@ -137,18 +162,17 @@ document.addEventListener('click', event => {
   }
   if (button.dataset.check !== undefined) {
     const i = +button.dataset.check; if (state.page !== 'canvas' || state.active !== i) return;
-    const item = state.items[i], result = validateLayer(i, item.text); if (result.type === 'empty') { document.getElementById('layer-feedback').textContent = result.message; return; } item.ok = result.ok; item.skipped = false; item.feedback = result;
+    const item = state.items[i], result = validateLayer(i, item.text); if (result.type === 'empty') { const feedback = document.getElementById('layer-feedback'); feedback.classList.remove('success'); feedback.textContent = result.message; return; } item.ok = result.ok; item.skipped = false; item.feedback = result;
     submitAttempt(item, { text: item.text, ok: result.ok, type: result.type, score: scoreLayer(result), hintsUsed: item.hints, at: new Date().toISOString() }); render();
-    if (!result.ok && !item.answerVisible && result.type !== 'empty') { document.getElementById('feedback-text').textContent = result.message; document.getElementById('feedback-dialog').showModal(); }
-    else document.querySelector(item.answerVisible ? '.reference-answer' : '.question-score').scrollIntoView({ block: 'nearest', behavior: 'instant' }); return;
+    document.getElementById('layer-check-action').scrollIntoView({ block: 'nearest', behavior: 'instant' }); return;
   }
   const action = button.dataset.action;
   if (action === 'toggle-reference') {
-    const record = submission(button.dataset.reference); if (!record || !record.attempts.length && !state.submissions.post.attempts.length) return;
-    if (record.answerVisible) record.answerVisible = false; else revealAnswer(record, state.submissions.post.attempts.length > 0);
+    const record = submission(button.dataset.reference); if (!record) return;
+    if (record.answerVisible) record.answerVisible = false; else revealAnswer(record);
     const panel = document.getElementById(`reference-${button.dataset.reference}`);
     panel.hidden = !record.answerVisible; button.setAttribute('aria-expanded', String(record.answerVisible));
-    button.textContent = record.answerVisible ? '收起参考答案' : '查看参考答案'; return;
+    button.textContent = answerButtonText(button.dataset.reference, record.answerVisible); return;
   }
   if (action === 'return-training' && state.page === 'post') return go('canvas');
   if (action === 'skip-stage') {
@@ -162,8 +186,8 @@ document.addEventListener('click', event => {
   }
   if (action === 'skip-layer' || action === 'next-layer') {
     if (state.page !== 'canvas' || state.active >= 5) return; const item = state.items[state.active];
-    if (action === 'next-layer' && !item.ok) return;
-    if (action === 'skip-layer' && !item.ok) item.skipped = true;
+    if (action === 'next-layer' && !item.feedback) return;
+    if (action === 'skip-layer' && !item.feedback) item.skipped = true;
     state.active++; return go('canvas');
   }
   if (action === 'continue-essay' && state[state.page]) return go(state.page === 'pre' ? 'canvas' : 'map');
@@ -183,21 +207,21 @@ document.addEventListener('click', event => {
     if (!state.links.some(hasAnswerContent)) { document.getElementById('links-error').textContent = '请先填写至少一段关系，只有标点或空格无法评分；也可以跳过。'; return; }
     state.linkResults = state.links.map((text, i) => gradeConnection(i, text));
     submitAttempt(state.submissions.connections, { texts: [...state.links], scores: [...state.linkResults], at: new Date().toISOString() });
-    state.trainingFinished = state.linkResults.every(n => n === 1);
+    state.trainingFinished = true;
     state.trained = state.trainingFinished && state.items.every(item => item.ok);
     render(); document.querySelector(state.submissions.connections.answerVisible ? '.reference-answer' : '#connection-feedback').scrollIntoView({ block: 'nearest', behavior: 'instant' }); return;
   }
   if (action === 'continue-training' && state.page === 'canvas' && state.active === 5 && state.trainingFinished) { state.skippedTraining = false; return go('post'); }
   if (action === 'export' && state.page === 'report') {
-    const record = { title: '知因 · 第一次鸦片战争学习记录', exportedAt: new Date().toISOString(), scoringNotice: '按正确概念与传导关系给分，错误或未答到的要点计0分；未作答与跳过不记零分。', pre: state.pre ? { answer: state.preText, ...state.pre } : null, post: state.post ? { answer: state.postText, ...state.post } : null, drafts: { pre: state.preText, post: state.postText }, methodHints: state.methodHints, skipped: { pre: state.skippedPre, training: state.skippedTraining, post: state.skippedPost, connections: state.skippedLinks }, submissions: state.submissions, connectionScores: state.linkResults, layers: state.items.map((item, i) => ({ layer: layers[i].title, ...item })), connections: state.links };
+    const record = { title: '知因 · 第一次鸦片战争学习记录', exportedAt: new Date().toISOString(), scoringNotice: '按正确概念与传导关系给分，错误或未答到的要点计0分；未作答与跳过不记零分。', pre: state.pre ? { answer: state.preText, ...state.pre } : null, post: state.post ? { answer: state.postText, ...state.post } : null, drafts: { pre: state.preText, post: state.postText }, methodHints: state.methodHints, skipped: { pre: state.skippedPre, training: state.skippedTraining, post: state.skippedPost, connections: state.skippedLinks }, submissions: state.submissions, practiceScore: summarizePractice(state), connectionScores: state.linkResults, layers: state.items.map((item, i) => ({ layer: layers[i].title, ...item })), connections: state.links };
     const url = URL.createObjectURL(new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = '知因-鸦片战争-学习记录.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); toast('学习记录已导出，包含原文、识别依据与提示使用情况。');
   }
 });
 main.addEventListener('input', event => {
   const input = event.target;
   if (input.id === 'essay') { document.getElementById('essay-error').textContent = ''; const mode = input.dataset.mode; state[mode + 'Text'] = input.value; if (state[mode]) { state[mode] = null; document.getElementById('essay-actions').innerHTML = essayActions(mode); } document.getElementById('word-count').textContent = `${input.value.length} 字 · 不限字数`; }
-  if (input.dataset.layerInput !== undefined) { const i = +input.dataset.layerInput, item = state.items[i]; item.text = input.value; if (item.ok || item.feedback || item.skipped) { item.ok = false; item.skipped = false; item.feedback = null; state.trained = false; state.trainingFinished = false; document.getElementById(`layer-${i}`).classList.remove('correct'); document.querySelector('.layer-status').textContent = '待检验'; document.getElementById('layer-feedback').textContent = ''; document.getElementById('layer-score').innerHTML = ''; document.getElementById('layer-check-action').innerHTML = layerCheckAction(i); } }
-  if (input.dataset.link !== undefined) { document.getElementById('links-error').textContent = ''; state.links[+input.dataset.link] = input.value; state.linkResults = null; document.getElementById('connection-feedback').innerHTML = ''; state.trained = false; state.trainingFinished = false; }
+  if (input.dataset.layerInput !== undefined) { const i = +input.dataset.layerInput, item = state.items[i]; item.text = input.value; if (item.ok || item.feedback || item.skipped) { item.ok = false; item.skipped = false; item.feedback = null; state.trained = false; state.trainingFinished = false; document.getElementById(`layer-${i}`).classList.remove('correct'); document.querySelector('.layer-status').textContent = '待重新提交'; document.getElementById('layer-feedback').textContent = ''; document.getElementById('layer-check-action').innerHTML = layerCheckAction(i); refreshPracticeAnswer(`layer-${i}`); updateCanvasProgress(); } }
+  if (input.dataset.link !== undefined) { document.getElementById('links-error').textContent = ''; state.links[+input.dataset.link] = input.value; state.linkResults = null; document.getElementById('connection-feedback').innerHTML = ''; state.trained = false; state.trainingFinished = false; refreshPracticeAnswer('connections'); }
 });
 const dialog = document.getElementById('about-dialog');
 document.getElementById('about-button').addEventListener('click', () => { voice.cancel(); resetArmed = false; document.getElementById('reset-help').textContent = ''; dialog.showModal(); });

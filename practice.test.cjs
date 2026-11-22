@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { layers, validateLayer, gradeEssay, gradeConnection, referenceAnswers } = require('./logic.js');
-const { createSession, submitAttempt, revealAnswer, revealAfterPost, scoreLayer } = require('./practice.js');
+const { createSession, submitAttempt, revealAnswer, revealAfterPost, scoreLayer, summarizePractice } = require('./practice.js');
 
 test('partial answers retain earned points and missing dimensions receive zero', () => {
   const result = gradeEssay('英国工业革命后需要开拓市场。');
@@ -18,7 +18,9 @@ test('wrong answers score zero while empty answers remain unsubmitted', () => {
 
 test('pre-test offers optional answers and repeated pre-test submissions never force them open', () => {
   const session = createSession(layers), target = session.submissions.pre;
-  assert.equal(revealAnswer(target), false);
+  assert.equal(revealAnswer(target), true);
+  assert.equal(target.attempts.length, 0);
+  target.answerVisible = false;
   submitAttempt(target, { text: '第一次作答', result: { total: 2 } });
   assert.equal(target.answerVisible, false);
   assert.equal(session.submissions.post.attempts.length, 0);
@@ -78,4 +80,16 @@ test('reference essays and five layer answers satisfy their own published scorin
   assert.equal(gradeEssay(referenceAnswers.post).total, 10);
   referenceAnswers.layers.forEach((answer, i) => assert.equal(validateLayer(i, answer).ok, true));
   referenceAnswers.connections.forEach((answer, i) => assert.equal(gradeConnection(i, answer), 1));
+});
+
+test('practice totals include zero-score submissions, omit blanks, and use the current graded answer', () => {
+  const session = createSession(layers);
+  assert.deepEqual(summarizePractice(session), { earned: null, graded: 0, maximum: 9 });
+  session.items[0].feedback = validateLayer(0, '不知道');
+  session.items[1].feedback = validateLayer(1, '英国借禁烟冲突发动侵华战争');
+  session.items[2].skipped = true;
+  session.linkResults = [0, 1, null, null];
+  assert.deepEqual(summarizePractice(session), { earned: 2, graded: 4, maximum: 9 });
+  session.items[1].feedback = null;
+  assert.deepEqual(summarizePractice(session), { earned: 1, graded: 3, maximum: 9 });
 });

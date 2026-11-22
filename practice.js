@@ -14,8 +14,7 @@
   function submitAttempt(target, attempt) {
     target.attempts.push(attempt);
   }
-  function revealAnswer(target, postSubmitted = false) {
-    if (target.attempts.length === 0 && !postSubmitted) return false;
+  function revealAnswer(target) {
     target.answerVisible = true;
     return true;
   }
@@ -24,7 +23,11 @@
     [...Object.values(session.submissions), ...session.items].forEach(target => { target.answerVisible = true; });
   }
   const scoreLayer = result => result.type === 'empty' ? null : result.ok ? 1 : 0;
-  const api = { createSession, submitAttempt, revealAnswer, revealAfterPost, scoreLayer };
+  function summarizePractice(session) {
+    const scores = [...session.items.map(item => item.feedback ? scoreLayer(item.feedback) : null), ...(session.linkResults || [null, null, null, null])].filter(score => score !== null);
+    return { earned: scores.length ? scores.reduce((sum, score) => sum + score, 0) : null, graded: scores.length, maximum: 9 };
+  }
+  const api = { createSession, submitAttempt, revealAnswer, revealAfterPost, scoreLayer, summarizePractice };
   scope.HistoryPractice = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
